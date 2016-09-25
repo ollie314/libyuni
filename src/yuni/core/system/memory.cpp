@@ -1,41 +1,12 @@
 /*
-** YUNI's default license is the GNU Lesser Public License (LGPL), with some
-** exclusions (see below). This basically means that you can get the full source
-** code for nothing, so long as you adhere to a few rules.
+** This file is part of libyuni, a cross-platform C++ framework (http://libyuni.org).
 **
-** Under the LGPL you may use YUNI for any purpose you wish, and modify it if you
-** require, as long as you:
+** This Source Code Form is subject to the terms of the Mozilla Public License
+** v.2.0. If a copy of the MPL was not distributed with this file, You can
+** obtain one at http://mozilla.org/MPL/2.0/.
 **
-** Pass on the (modified) YUNI source code with your software, with original
-** copyrights intact :
-**  * If you distribute electronically, the source can be a separate download
-**    (either from your own site if you modified YUNI, or to the official YUNI
-**    website if you used an unmodified version) – just include a link in your
-**    documentation
-**  * If you distribute physical media, the YUNI source that you used to build
-**    your application should be included on that media
-** Make it clear where you have customised it.
-**
-** In addition to the LGPL license text, the following exceptions / clarifications
-** to the LGPL conditions apply to YUNI:
-**
-**  * Making modifications to YUNI configuration files, build scripts and
-**    configuration headers such as yuni/platform.h in order to create a
-**    customised build setup of YUNI with the otherwise unmodified source code,
-**    does not constitute a derived work
-**  * Building against YUNI headers which have inlined code does not constitute a
-**    derived work
-**  * Code which subclasses YUNI classes outside of the YUNI libraries does not
-**    form a derived work
-**  * Statically linking the YUNI libraries into a user application does not make
-**    the user application a derived work.
-**  * Using source code obsfucation on the YUNI source code when distributing it
-**    is not permitted.
-** As per the terms of the LGPL, a "derived work" is one for which you have to
-** distribute source code for, so when the clauses above define something as not
-** a derived work, it means you don't have to distribute source code for it.
-** However, the original YUNI source code with all modifications must always be
-** made available.
+** github: https://github.com/libyuni/libyuni/
+** gitlab: https://gitlab.com/libyuni/libyuni/ (mirror)
 */
 // memory.h: The relative path is to avoid conflict with <memory.h>, which
 // can sometimes occur...
@@ -75,9 +46,23 @@ namespace System
 namespace Memory
 {
 
+	//! Constants to use when information about the memory usage could not be retrieved
+	enum
+	{
+		//! The default amount of available physical memory
+		defaultAvailable = 1024 * 1024 * 512,  // 512Mo
+		//! The default amount of total physical memory
+		defaultTotal     = 1024 * 1024 * 1024, // 1Go
+	};
 
-#ifdef YUNI_OS_WINDOWS
-#define SYSTEM_MEMORY_IS_IMPLEMENTED
+
+
+
+
+
+
+	#ifdef YUNI_OS_WINDOWS
+	#define SYSTEM_MEMORY_IS_IMPLEMENTED
 
 	uint64 Total()
 	{
@@ -116,94 +101,96 @@ namespace Memory
 		return false;
 	}
 
-#endif // YUNI_OS_WINDOWS
+	#endif // YUNI_OS_WINDOWS
 
 
 
 
 
 
-#if defined(YUNI_OS_LINUX) || defined(YUNI_OS_CYGWIN)
-#define SYSTEM_MEMORY_IS_IMPLEMENTED
+	#if defined(YUNI_OS_LINUX) || defined(YUNI_OS_CYGWIN)
+	#define SYSTEM_MEMORY_IS_IMPLEMENTED
 
-	/*!
-	** \brief Read a line from a file
-	*/
-	static inline int fgetline(FILE* fp, char* s, int maxlen)
+	namespace // anonymous
 	{
-		int i = 0;
-		char c;
 
-		while ((c = (char)fgetc(fp)) != EOF)
+		//! Read a line from a file
+		static inline int fgetline(FILE* fp, char* s, int maxlen)
 		{
-			if (c == '\n')
-			{
-				*s = '\0';
-				return i;
-			}
-			if (i >= maxlen)
-				return i;
+			int i = 0;
+			char c;
 
-			*s++ = c;
-			++i;
+			while ((c = (char)fgetc(fp)) != EOF)
+			{
+				if (c == '\n')
+				{
+					*s = '\0';
+					return i;
+				}
+				if (i >= maxlen)
+					return i;
+
+				*s++ = c;
+				++i;
+			}
+			return (!i) ? EOF : i;
 		}
 
-		return (!i) ? EOF : i;
-	}
 
+		static inline uint64 readvalue(char* line)
+		{
+			// Here is a sample for /proc/meminfo :
+			//
+			// MemTotal:      1929228 kB
+			// MemFree:         12732 kB
+			// Buffers:         72176 kB
+			// Cached:        1076572 kB
+			// SwapCached:     151412 kB
+			// Active:        1491184 kB
+			// Inactive:       190832 kB
+			// HighTotal:           0 kB
+			// HighFree:            0 kB
+			// LowTotal:      1929228 kB
+			// LowFree:         12732 kB
+			// SwapTotal:     2096472 kB
+			// SwapFree:      1732964 kB
+			// Dirty:             736 kB
+			// Writeback:           0 kB
+			// AnonPages:      512004 kB
+			// Mapped:         702148 kB
+			// Slab:           154320 kB
+			// PageTables:      34712 kB
+			// NFS_Unstable:        0 kB
+			// Bounce:              0 kB
+			// CommitLimit:   3061084 kB
+			// Committed_AS:  1357596 kB
+			// VmallocTotal: 34359738367 kB
+			// VmallocUsed:    263492 kB
+			// VmallocChunk: 34359474679 kB
+			// HugePages_Total:     0
+			// HugePages_Free:      0
+			// HugePages_Rsvd:      0
+			// Hugepagesize:     2048 kB
 
-	static uint64 readvalue(char* line)
-	{
-		// Here is a sample for /proc/meminfo :
-		//
-		// MemTotal:      1929228 kB
-		// MemFree:         12732 kB
-		// Buffers:         72176 kB
-		// Cached:        1076572 kB
-		// SwapCached:     151412 kB
-		// Active:        1491184 kB
-		// Inactive:       190832 kB
-		// HighTotal:           0 kB
-		// HighFree:            0 kB
-		// LowTotal:      1929228 kB
-		// LowFree:         12732 kB
-		// SwapTotal:     2096472 kB
-		// SwapFree:      1732964 kB
-		// Dirty:             736 kB
-		// Writeback:           0 kB
-		// AnonPages:      512004 kB
-		// Mapped:         702148 kB
-		// Slab:           154320 kB
-		// PageTables:      34712 kB
-		// NFS_Unstable:        0 kB
-		// Bounce:              0 kB
-		// CommitLimit:   3061084 kB
-		// Committed_AS:  1357596 kB
-		// VmallocTotal: 34359738367 kB
-		// VmallocUsed:    263492 kB
-		// VmallocChunk: 34359474679 kB
-		// HugePages_Total:     0
-		// HugePages_Free:      0
-		// HugePages_Rsvd:      0
-		// Hugepagesize:     2048 kB
+			// Trimming the string from the begining
+			while (*line == ' ' and *line != '\0')
+				++line;
+			const char* first = line;
 
-		// Trimming the string from the begining
-		while (*line == ' ' and *line != '\0')
-			++line;
-		const char* first = line;
+			// Looking for the end of the number
+			while (*line != ' ' and *line != '\0')
+				++line;
+			// Tagging the end of the number
+			*line = '\0';
 
-		// Looking for the end of the number
-		while (*line != ' ' and *line != '\0')
-			++line;
-		// Tagging the end of the number
-		*line = '\0';
+			# ifdef YUNI_OS_32
+			return (uint64) atol(first) * 1024u;
+			# else
+			return (uint64) atoll(first) * 1024u;
+			# endif
+		}
 
-		# ifdef YUNI_OS_32
-		return (uint64) atol(first) * 1024u;
-		# else
-		return (uint64) atoll(first) * 1024u;
-		# endif
-	}
+	} // anonymous namespace
 
 
 	bool Usage::update()
@@ -283,21 +270,27 @@ namespace Memory
 
 	uint64 Total()
 	{
-#ifdef YUNI_OS_LINUX
-		// Directly using sysinfo (2), which should be faster than parsing /proc/meminfo
-		struct sysinfo s;
-		return (!sysinfo(&s)) ? (s.mem_unit * s.totalram) : (uint64) defaultTotal;
-#else
-		return Usage().total;
-#endif
+		#ifdef YUNI_OS_LINUX
+		{
+			// Directly using sysinfo (2), which should be faster than parsing /proc/meminfo
+			struct sysinfo s;
+			return (!sysinfo(&s)) ? (s.mem_unit * s.totalram) : (uint64) defaultTotal;
+		}
+		#else
+		{
+			return Usage().total;
+		}
+		#endif
 	}
 
-#endif // YUNI_OS_LINUX
+	#endif // YUNI_OS_LINUX
 
 
 
-#ifdef YUNI_OS_MAC
-#define SYSTEM_MEMORY_IS_IMPLEMENTED
+
+
+	#ifdef YUNI_OS_MAC
+	#define SYSTEM_MEMORY_IS_IMPLEMENTED
 
 	uint64 Total()
 	{
@@ -345,7 +338,7 @@ namespace Memory
 		return true;
 	}
 
-#endif // YUNI_OS_MAC
+	#endif // YUNI_OS_MAC
 
 
 
@@ -354,8 +347,9 @@ namespace Memory
 
 
 
-#ifndef SYSTEM_MEMORY_IS_IMPLEMENTED
-#warning Yuni::System::Memory: The implementation is missing for this operating system
+	#ifndef SYSTEM_MEMORY_IS_IMPLEMENTED
+	#warning Yuni::System::Memory: The implementation is missing for this operating system
+
 
 	uint64 Total()
 	{
@@ -374,12 +368,10 @@ namespace Memory
 		return false;
 	}
 
-#endif // Fallback
+	#endif // Fallback
 
 
 
 } // namespace Memory
 } // namespace System
 } // namespace Yuni
-
-

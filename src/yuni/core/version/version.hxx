@@ -1,41 +1,12 @@
 /*
-** YUNI's default license is the GNU Lesser Public License (LGPL), with some
-** exclusions (see below). This basically means that you can get the full source
-** code for nothing, so long as you adhere to a few rules.
+** This file is part of libyuni, a cross-platform C++ framework (http://libyuni.org).
 **
-** Under the LGPL you may use YUNI for any purpose you wish, and modify it if you
-** require, as long as you:
+** This Source Code Form is subject to the terms of the Mozilla Public License
+** v.2.0. If a copy of the MPL was not distributed with this file, You can
+** obtain one at http://mozilla.org/MPL/2.0/.
 **
-** Pass on the (modified) YUNI source code with your software, with original
-** copyrights intact :
-**  * If you distribute electronically, the source can be a separate download
-**    (either from your own site if you modified YUNI, or to the official YUNI
-**    website if you used an unmodified version) – just include a link in your
-**    documentation
-**  * If you distribute physical media, the YUNI source that you used to build
-**    your application should be included on that media
-** Make it clear where you have customised it.
-**
-** In addition to the LGPL license text, the following exceptions / clarifications
-** to the LGPL conditions apply to YUNI:
-**
-**  * Making modifications to YUNI configuration files, build scripts and
-**    configuration headers such as yuni/platform.h in order to create a
-**    customised build setup of YUNI with the otherwise unmodified source code,
-**    does not constitute a derived work
-**  * Building against YUNI headers which have inlined code does not constitute a
-**    derived work
-**  * Code which subclasses YUNI classes outside of the YUNI libraries does not
-**    form a derived work
-**  * Statically linking the YUNI libraries into a user application does not make
-**    the user application a derived work.
-**  * Using source code obsfucation on the YUNI source code when distributing it
-**    is not permitted.
-** As per the terms of the LGPL, a "derived work" is one for which you have to
-** distribute source code for, so when the clauses above define something as not
-** a derived work, it means you don't have to distribute source code for it.
-** However, the original YUNI source code with all modifications must always be
-** made available.
+** github: https://github.com/libyuni/libyuni/
+** gitlab: https://gitlab.com/libyuni/libyuni/ (mirror)
 */
 #pragma once
 #include "version.h"
@@ -46,49 +17,48 @@ namespace Yuni
 {
 
 	inline Version::Version()
-		: hi(), lo(), revision()
+		: hi(), lo(), patch()
 	{}
 
 
-	inline Version::Version(uint major)
-		: hi(major), lo(), revision()
+	inline Version::Version(uint32_t major)
+		: hi(major), lo(), patch()
 	{}
 
 
-	inline Version::Version(uint major, uint minor)
-		: hi(major), lo(minor), revision()
+	inline Version::Version(uint32_t major, uint32_t minor)
+		: hi(major), lo(minor), patch()
 	{}
 
 
-	inline Version::Version(uint major, uint minor, uint rev)
-		: hi(major), lo(minor), revision(rev)
+	inline Version::Version(uint32_t major, uint32_t minor, uint32_t patch)
+		: hi(major), lo(minor), patch(patch)
 	{}
 
 
 	inline Version::Version(const Version& c)
-		: hi(c.hi), lo(c.lo), revision(c.revision)
+		: hi(c.hi), lo(c.lo), patch(c.patch)
 	{}
 
 
-
-
-	inline void Version::assign(uint major, uint minor, uint rev)
+	inline void Version::assign(uint32_t major, uint32_t minor, uint32_t p)
 	{
 		hi = major;
 		lo = minor;
-		revision = rev;
+		patch = p;
 	}
 
 
 	inline void Version::clear()
 	{
-		hi = lo = revision = 0;
+		hi = lo = patch = 0;
+		metadata.clear();
 	}
 
 
 	inline bool Version::isEqualTo(const Version& rhs) const
 	{
-		return (rhs.hi == hi) and (rhs.lo == lo) and (rhs.revision == revision);
+		return (rhs.hi == hi) and (rhs.lo == lo) and (rhs.patch == patch);
 	}
 
 
@@ -130,14 +100,22 @@ namespace Yuni
 
 	inline bool Version::null() const
 	{
-		return (hi == 0 and lo == 0 and revision == 0);
+		return (hi == 0 and lo == 0 and patch == 0);
+	}
+
+
+	inline String Version::toString() const
+	{
+		return String() << hi << '.' << lo << '.' << patch;
 	}
 
 
 	template<class S>
 	inline void Version::print(S& out) const
 	{
-		out << hi << '.' << lo << '.' << revision;
+		out << hi << '.' << lo << '.' << patch;
+		if (not metadata.empty())
+			out << '-' << metadata;
 	}
 
 
@@ -145,16 +123,15 @@ namespace Yuni
 	{
 		hi = rhs.hi;
 		lo = rhs.lo;
-		revision = rhs.revision;
+		patch = rhs.patch;
+		metadata = rhs.metadata;
 		return *this;
 	}
 
 
 
-
-
-
 } // namespace Yuni
+
 
 
 

@@ -1,41 +1,12 @@
 /*
-** YUNI's default license is the GNU Lesser Public License (LGPL), with some
-** exclusions (see below). This basically means that you can get the full source
-** code for nothing, so long as you adhere to a few rules.
+** This file is part of libyuni, a cross-platform C++ framework (http://libyuni.org).
 **
-** Under the LGPL you may use YUNI for any purpose you wish, and modify it if you
-** require, as long as you:
+** This Source Code Form is subject to the terms of the Mozilla Public License
+** v.2.0. If a copy of the MPL was not distributed with this file, You can
+** obtain one at http://mozilla.org/MPL/2.0/.
 **
-** Pass on the (modified) YUNI source code with your software, with original
-** copyrights intact :
-**  * If you distribute electronically, the source can be a separate download
-**    (either from your own site if you modified YUNI, or to the official YUNI
-**    website if you used an unmodified version) – just include a link in your
-**    documentation
-**  * If you distribute physical media, the YUNI source that you used to build
-**    your application should be included on that media
-** Make it clear where you have customised it.
-**
-** In addition to the LGPL license text, the following exceptions / clarifications
-** to the LGPL conditions apply to YUNI:
-**
-**  * Making modifications to YUNI configuration files, build scripts and
-**    configuration headers such as yuni/platform.h in order to create a
-**    customised build setup of YUNI with the otherwise unmodified source code,
-**    does not constitute a derived work
-**  * Building against YUNI headers which have inlined code does not constitute a
-**    derived work
-**  * Code which subclasses YUNI classes outside of the YUNI libraries does not
-**    form a derived work
-**  * Statically linking the YUNI libraries into a user application does not make
-**    the user application a derived work.
-**  * Using source code obsfucation on the YUNI source code when distributing it
-**    is not permitted.
-** As per the terms of the LGPL, a "derived work" is one for which you have to
-** distribute source code for, so when the clauses above define something as not
-** a derived work, it means you don't have to distribute source code for it.
-** However, the original YUNI source code with all modifications must always be
-** made available.
+** github: https://github.com/libyuni/libyuni/
+** gitlab: https://gitlab.com/libyuni/libyuni/ (mirror)
 */
 #pragma once
 #include "../yuni.h"
@@ -141,8 +112,6 @@ namespace Job
 		**
 		** This method has no effect if the taskgroup was already running and will
 		** stop immediatly if no job/callback has been added first.
-		**
-		** \param cancelOnError True to automatically cancel the task when the first error is encountered. False to continue anyway
 		*/
 		void start();
 
@@ -170,9 +139,9 @@ namespace Job
 		/*!
 		** \brief Get the current status of the task and Fetch various information in the same time
 		**
-		** \param[out] status The current status of the task
-		** \param jobCount The total number of jobs [optional]
-		** \param doneCount The total number of jobs which have terminated [optional]
+		** \param[out] jobCount The total number of jobs [optional]
+		** \param[out] doneCount The total number of jobs which have terminated [optional]
+		** \return status The current status of the task
 		*/
 		Status status(uint* jobCount = nullptr, uint* doneCount = nullptr) const;
 
@@ -199,7 +168,6 @@ namespace Job
 		** \brief Add a new job in the task
 		**
 		** The job will be added to the default queueservice immediatly if the taskgroup is running
-		** \param queueservice Any queueservice can be used.
 		** \param callback A functor / lambda
 		*/
 		void add(const Bind<bool (IJob&)>& callback);
@@ -210,7 +178,6 @@ namespace Job
 		** The job will be added to the queueservice immediatly if the taskgroup is running
 		** \param queueservice Any queueservice can be used.
 		** \param callback A functor / lambda
-		** \param autostart True to automatically run the task if not already running
 		*/
 		void add(QueueService& queueservice, const Bind<bool (IJob&)>& callback);
 		//@}
@@ -228,7 +195,6 @@ namespace Job
 		//@}
 
 
-
 	public:
 		//! All events
 		struct
@@ -239,7 +205,6 @@ namespace Job
 			Event<void (Status success)> terminated;
 		}
 		on;
-
 
 
 	private:

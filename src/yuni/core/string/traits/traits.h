@@ -1,41 +1,12 @@
 /*
-** YUNI's default license is the GNU Lesser Public License (LGPL), with some
-** exclusions (see below). This basically means that you can get the full source
-** code for nothing, so long as you adhere to a few rules.
+** This file is part of libyuni, a cross-platform C++ framework (http://libyuni.org).
 **
-** Under the LGPL you may use YUNI for any purpose you wish, and modify it if you
-** require, as long as you:
+** This Source Code Form is subject to the terms of the Mozilla Public License
+** v.2.0. If a copy of the MPL was not distributed with this file, You can
+** obtain one at http://mozilla.org/MPL/2.0/.
 **
-** Pass on the (modified) YUNI source code with your software, with original
-** copyrights intact :
-**  * If you distribute electronically, the source can be a separate download
-**    (either from your own site if you modified YUNI, or to the official YUNI
-**    website if you used an unmodified version) – just include a link in your
-**    documentation
-**  * If you distribute physical media, the YUNI source that you used to build
-**    your application should be included on that media
-** Make it clear where you have customised it.
-**
-** In addition to the LGPL license text, the following exceptions / clarifications
-** to the LGPL conditions apply to YUNI:
-**
-**  * Making modifications to YUNI configuration files, build scripts and
-**    configuration headers such as yuni/platform.h in order to create a
-**    customised build setup of YUNI with the otherwise unmodified source code,
-**    does not constitute a derived work
-**  * Building against YUNI headers which have inlined code does not constitute a
-**    derived work
-**  * Code which subclasses YUNI classes outside of the YUNI libraries does not
-**    form a derived work
-**  * Statically linking the YUNI libraries into a user application does not make
-**    the user application a derived work.
-**  * Using source code obsfucation on the YUNI source code when distributing it
-**    is not permitted.
-** As per the terms of the LGPL, a "derived work" is one for which you have to
-** distribute source code for, so when the clauses above define something as not
-** a derived work, it means you don't have to distribute source code for it.
-** However, the original YUNI source code with all modifications must always be
-** made available.
+** github: https://github.com/libyuni/libyuni/
+** gitlab: https://gitlab.com/libyuni/libyuni/ (mirror)
 */
 #pragma once
 #include "../../../yuni.h"
@@ -149,7 +120,7 @@ namespace CStringImpl
 			chunkSize = ChunkSizeT,
 			zeroTerminated = 1, //(ZeroTerminatedT ? 1 : 0),
 			expandable = 1,
-			adapter  = (!chunkSize and expandable and !(uint) zeroTerminated),
+			adapter  = (!chunkSize and expandable and !static_cast<uint>(zeroTerminated)),
 		};
 
 	public:
@@ -173,17 +144,26 @@ namespace CStringImpl
 
 		void clear();
 
+		void forgetContent();
+
 		bool null() const { return (data == NULL); }
+
+		void swap(Data<ChunkSizeT,ExpandableT>& rhs)
+		{
+			std::swap(size, rhs.size);
+			std::swap(capacity, rhs.capacity);
+			std::swap(data, rhs.data);
+		}
 
 		Size assignWithoutChecking(const C* const block, const Size blockSize)
 		{
 			// Making sure that we have enough space
-			reserve(blockSize + (uint) zeroTerminated);
+			reserve(blockSize + static_cast<uint>(zeroTerminated));
 			// Raw copy
-			YUNI_MEMCPY(const_cast<char*>(data), (uint) capacity, block, sizeof(C) * blockSize);
+			YUNI_MEMCPY(const_cast<char*>(data), static_cast<uint>(capacity), block, sizeof(C) * blockSize);
 			// New size
 			size = blockSize;
-			if ((uint) zeroTerminated)
+			if (static_cast<uint>(zeroTerminated))
 				(const_cast<char*>(data))[size] = C();
 			return blockSize;
 		}
@@ -192,12 +172,12 @@ namespace CStringImpl
 		Size appendWithoutChecking(const C* const block, const Size blockSize)
 		{
 			// Making sure that we have enough space
-			reserve(size + blockSize + (uint) zeroTerminated);
+			reserve(size + blockSize + static_cast<uint>(zeroTerminated));
 			// Raw copy
-			YUNI_MEMCPY(const_cast<char*>(data) + size * sizeof(C), (uint) capacity, block, blockSize * sizeof(C));
+			YUNI_MEMCPY(const_cast<char*>(data) + size * sizeof(C), static_cast<uint>(capacity), block, blockSize * sizeof(C));
 			// New size
 			size += blockSize;
-			if ((uint) zeroTerminated)
+			if (static_cast<uint>(zeroTerminated))
 				(const_cast<char*>(data))[size] = C();
 			return blockSize;
 		}
@@ -205,12 +185,12 @@ namespace CStringImpl
 		Size assignWithoutChecking(const C c)
 		{
 			// Making sure that we have enough space
-			reserve(1 + (uint) zeroTerminated);
+			reserve(1 + static_cast<uint>(zeroTerminated));
 			// Raw copy
 			(const_cast<char*>(data))[0] = c;
 			// New size
 			size = 1;
-			if ((uint) zeroTerminated)
+			if (static_cast<uint>(zeroTerminated))
 				(const_cast<char*>(data))[1] = C();
 			return 1;
 		}
@@ -219,12 +199,12 @@ namespace CStringImpl
 		Size appendWithoutChecking(const C c)
 		{
 			// Making sure that we have enough space
-			reserve(size + 1 + (uint) zeroTerminated);
+			reserve(size + 1 + static_cast<uint>(zeroTerminated));
 			// Raw copy
 			(const_cast<char*>(data))[size] = c;
 			// New size
 			++size;
-			if ((uint) zeroTerminated)
+			if (static_cast<uint>(zeroTerminated))
 				(const_cast<char*>(data))[size] = C();
 			return 1;
 		}
@@ -291,14 +271,14 @@ namespace CStringImpl
 			size(0)
 		{
 			// The buffer must be properly initialized
-			if ((uint) zeroTerminated)
+			if (static_cast<uint>(zeroTerminated))
 				data[0] = C();
 		}
 
 		Data(const Data& rhs) :
 			size(rhs.size)
 		{
-			YUNI_MEMCPY(data, sizeof(C) * ((uint) capacity + (uint) zeroTerminated), rhs.data, sizeof(C) * (size + (uint) zeroTerminated));
+			YUNI_MEMCPY(data, sizeof(C) * (static_cast<uint>(capacity) + static_cast<uint>(zeroTerminated)), rhs.data, sizeof(C) * (size + static_cast<uint>(zeroTerminated)));
 		}
 
 		# ifdef YUNI_HAS_CPP_MOVE
@@ -306,9 +286,9 @@ namespace CStringImpl
 			size(rhs.size)
 		{
 			// it is impossible to perform a real move in this case
-			YUNI_MEMCPY(data, sizeof(C) * ((uint) capacity + (uint) zeroTerminated), rhs.data, sizeof(C) * (size + (uint) zeroTerminated));
+			YUNI_MEMCPY(data, sizeof(C) * (static_cast<uint>(capacity) + static_cast<uint>(zeroTerminated)), rhs.data, sizeof(C) * (size + static_cast<uint>(zeroTerminated)));
 			rhs.size = 0;
-			if ((uint) zeroTerminated)
+			if (static_cast<uint>(zeroTerminated))
 				rhs.data[0] = C();
 		}
 		# endif
@@ -316,11 +296,18 @@ namespace CStringImpl
 		void clear()
 		{
 			size = 0;
-			if ((uint) zeroTerminated)
+			if (static_cast<uint>(zeroTerminated))
 				data[0] = C();
 		}
 
+		void forgetContent()
+		{
+			clear();
+		}
+
 		static bool null() { return false; }
+
+		void swap(Data<ChunkSizeT,false>& rhs);
 
 		Size assignWithoutChecking(const C* const block, Size blockSize);
 
@@ -354,41 +341,41 @@ namespace CStringImpl
 
 		void insert(Size offset, const C* const buffer, Size len)
 		{
-			if (offset + len >= (uint) capacity)
+			if (offset + len >= static_cast<uint>(capacity))
 			{
 				// The new buffer will take the whole space
-				YUNI_MEMCPY(data + sizeof(C) * (offset), (uint) capacity - offset, buffer,
-					sizeof(C) * ((uint) capacity - offset));
-				size = (uint) capacity;
-				if ((uint) zeroTerminated)
-					data[(uint) capacity] = C();
+				YUNI_MEMCPY(data + sizeof(C) * (offset), static_cast<uint>(capacity) - offset, buffer,
+					sizeof(C) * (static_cast<uint>(capacity) - offset));
+				size = static_cast<uint>(capacity);
+				if (static_cast<uint>(zeroTerminated))
+					data[static_cast<uint>(capacity)] = C();
 				return;
 			}
-			if (size + len <= (uint) capacity)
+			if (size + len <= static_cast<uint>(capacity))
 			{
 				// Move the existing block of data
 				(void)::memmove(data + sizeof(C) * (offset + len), data + sizeof(C) * (offset),
 					sizeof(C) * (size - offset));
 				// Copying the given buffer
-				YUNI_MEMCPY (data + sizeof(C) * (offset), (uint) capacity, buffer, sizeof(C) * len);
+				YUNI_MEMCPY (data + sizeof(C) * (offset), static_cast<uint>(capacity), buffer, sizeof(C) * len);
 				// Updating the size
 				size += len;
 				// zero-terminated
-				if ((uint) zeroTerminated)
+				if (static_cast<uint>(zeroTerminated))
 					data[size] = C();
 			}
 			else
 			{
 				// Move the existing block of data
 				(void)::memmove(data + sizeof(C) * (offset + len), data + sizeof(C) * (offset),
-					sizeof(C) * ((uint) capacity - offset - len));
+					sizeof(C) * (static_cast<uint>(capacity) - offset - len));
 				// Copying the given buffer
-				YUNI_MEMCPY(data + sizeof(C) * (offset), (uint) capacity, buffer, sizeof(C) * len);
+				YUNI_MEMCPY(data + sizeof(C) * (offset), static_cast<uint>(capacity), buffer, sizeof(C) * len);
 				// Updating the size
-				size = (uint) capacity;
+				size = static_cast<uint>(capacity);
 				// zero-terminated
-				if ((uint) zeroTerminated)
-					data[(uint) capacity] = C();
+				if (static_cast<uint>(zeroTerminated))
+					data[static_cast<uint>(capacity)] = C();
 			}
 		}
 
@@ -403,10 +390,10 @@ namespace CStringImpl
 		{
 			// it is impossible to perform a real move in this case
 			size = rhs.size;
-			YUNI_MEMCPY(data, (uint) capacity, rhs.data, sizeof(C) * (size + (uint) zeroTerminated));
+			YUNI_MEMCPY(data, static_cast<uint>(capacity), rhs.data, sizeof(C) * (size + static_cast<uint>(zeroTerminated)));
 
 			rhs.size = 0;
-			if ((uint) zeroTerminated)
+			if (static_cast<uint>(zeroTerminated))
 				rhs.data[0] = C();
 			return *this;
 		}
@@ -415,12 +402,12 @@ namespace CStringImpl
 	protected:
 		Size size;
 		/*!
-		** \brief Static buffer, fixed (uint) capacity
+		** \brief Static buffer, fixed static_cast<uint>(capacity)
 		**
 		** We always add +1 to allow standard routine write a final 0, and we
 		** may need it for zero-terminated strings any way.
 		*/
-		C data[(uint) capacity + 1];
+		C data[static_cast<uint>(capacity) + 1];
 
 		// Friend
 		template<uint SizeT, bool ExpT> friend class Yuni::CString;

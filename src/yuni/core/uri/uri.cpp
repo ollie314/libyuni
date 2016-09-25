@@ -1,41 +1,12 @@
 /*
-** YUNI's default license is the GNU Lesser Public License (LGPL), with some
-** exclusions (see below). This basically means that you can get the full source
-** code for nothing, so long as you adhere to a few rules.
+** This file is part of libyuni, a cross-platform C++ framework (http://libyuni.org).
 **
-** Under the LGPL you may use YUNI for any purpose you wish, and modify it if you
-** require, as long as you:
+** This Source Code Form is subject to the terms of the Mozilla Public License
+** v.2.0. If a copy of the MPL was not distributed with this file, You can
+** obtain one at http://mozilla.org/MPL/2.0/.
 **
-** Pass on the (modified) YUNI source code with your software, with original
-** copyrights intact :
-**  * If you distribute electronically, the source can be a separate download
-**    (either from your own site if you modified YUNI, or to the official YUNI
-**    website if you used an unmodified version) – just include a link in your
-**    documentation
-**  * If you distribute physical media, the YUNI source that you used to build
-**    your application should be included on that media
-** Make it clear where you have customised it.
-**
-** In addition to the LGPL license text, the following exceptions / clarifications
-** to the LGPL conditions apply to YUNI:
-**
-**  * Making modifications to YUNI configuration files, build scripts and
-**    configuration headers such as yuni/platform.h in order to create a
-**    customised build setup of YUNI with the otherwise unmodified source code,
-**    does not constitute a derived work
-**  * Building against YUNI headers which have inlined code does not constitute a
-**    derived work
-**  * Code which subclasses YUNI classes outside of the YUNI libraries does not
-**    form a derived work
-**  * Statically linking the YUNI libraries into a user application does not make
-**    the user application a derived work.
-**  * Using source code obsfucation on the YUNI source code when distributing it
-**    is not permitted.
-** As per the terms of the LGPL, a "derived work" is one for which you have to
-** distribute source code for, so when the clauses above define something as not
-** a derived work, it means you don't have to distribute source code for it.
-** However, the original YUNI source code with all modifications must always be
-** made available.
+** github: https://github.com/libyuni/libyuni/
+** gitlab: https://gitlab.com/libyuni/libyuni/ (mirror)
 */
 #include <ctype.h>
 #include "uri.h"
@@ -196,38 +167,38 @@ namespace Yuni
 				switch (location)
 				{
 					case partScheme:
-						{
-							// Suffix reference
-							infos.server = str;
-							break;
-						}
+					{
+						// Suffix reference
+						infos.server = str;
+						break;
+					}
 					case partServerForSure:
-						{
-							infos.server.append(str, remainingSize, lastPosition);
-							break;
-						}
+					{
+						infos.server.append(str, remainingSize, lastPosition);
+						break;
+					}
 					case partPort:
-						{
-							ShortString32 intstr(str, lastPosition, remainingSize);
-							infos.port = intstr.to<sint32>();
-							break;
-						}
+					{
+						ShortString32 intstr(str, lastPosition, remainingSize);
+						infos.port = intstr.to<sint32>();
+						break;
+					}
 					case partPath:
-						{
-							infos.path.append(str, remainingSize, lastPosition);
-							break;
-						}
+					{
+						infos.path.append(str, remainingSize, lastPosition);
+						break;
+					}
 
 					case partQuery:
-						{
-							infos.query.append(str, remainingSize, lastPosition);
-							break;
-						}
+					{
+						infos.query.append(str, remainingSize, lastPosition);
+						break;
+					}
 					case partFragment:
-						{
-							infos.fragment.append(str, remainingSize, lastPosition);
-							break;
-						}
+					{
+						infos.fragment.append(str, remainingSize, lastPosition);
+						break;
+					}
 					default: return false;
 				}
 			}
@@ -261,78 +232,78 @@ namespace Yuni
 			switch (c)
 			{
 				case '[': // Suffix reference ?
+				{
+					if (0 == this->indx) // Indeed, Here is the begining of an IPv6 address
 					{
-						if (0 == this->indx) // Indeed, Here is the begining of an IPv6 address
-						{
-							// `.` or `/` : Actually it is a path (absolute or relative)
-							// This part may not fully compliant with the RFC but it allows
-							// relative filename
-							location = partServerForSure;
-							this->indx = 0;
-							// The next loop will have `indx` == 1, so we must keep the information
-							// about the encountered bracket
-							this->tag = 1;
-							//
-							return true;
-						}
-						// A bracket should not be alone in the middle of the nowhere
-						return false;
+						// `.` or `/` : Actually it is a path (absolute or relative)
+						// This part may not fully compliant with the RFC but it allows
+						// relative filename
+						location = partServerForSure;
+						this->indx = 0;
+						// The next loop will have `indx` == 1, so we must keep the information
+						// about the encountered bracket
+						this->tag = 1;
+						//
+						return true;
 					}
+					// A bracket should not be alone in the middle of the nowhere
+					return false;
+				}
 				case '.' :
 				case '/' :
+				{
+					if (0 == this->indx) // Begining of an absolute path
 					{
-						if (0 == this->indx) // Begining of an absolute path
-						{
-							// `.` or `/` : Actually it is a path (absolute or relative)
-							// This part may not fully compliant with the RFC but it allows
-							// relative filename
-							location = partPath;
-							return true;
-						}
-						// If it is not a path, it can not be a scheme. It seems to be
-						// a suffix reference (with a missing scheme) like this :
-						// www.libyuni.org which should be http://www.libyuni.org for example
-						location = partServerForSure;
-						--indx;
+						// `.` or `/` : Actually it is a path (absolute or relative)
+						// This part may not fully compliant with the RFC but it allows
+						// relative filename
+						location = partPath;
 						return true;
 					}
+					// If it is not a path, it can not be a scheme. It seems to be
+					// a suffix reference (with a missing scheme) like this :
+					// www.libyuni.org which should be http://www.libyuni.org for example
+					location = partServerForSure;
+					--indx;
+					return true;
+				}
 				case '#': // Begining of a fragment in a scheme ?
+				{
+					if (0 == this->indx)
 					{
-						if (0 == this->indx)
-						{
-							// Actually the URI is only a fragment
-							lastPosition = indx + 1;
-							location = partFragment;
-							return true;
-						}
-						// Suffix reference : We was dealing with a host name in fact
-						location = partServerForSure;
-						--indx;
-						break;
-					}
-				case '?': // Begining of a query in a scheme ?
-					{
-						if (0 == this->indx)
-						{
-							// Actually the URI is only a query
-							lastPosition = indx + 1;
-							location = partQuery;
-							return true;
-						}
-						// Suffix reference : We were dealing with a host name in fact
-						location = partServerForSure;
-						--indx;
-						break;
-					}
-				case ':' :
-					{
-						// End of the scheme
-						infos.scheme.append(str, 0, indx);
-						infos.scheme.toLower();
+						// Actually the URI is only a fragment
 						lastPosition = indx + 1;
-						location = partServer;
+						location = partFragment;
 						return true;
 					}
+					// Suffix reference : We was dealing with a host name in fact
+					location = partServerForSure;
+					--indx;
+					break;
+				}
+				case '?': // Begining of a query in a scheme ?
+				{
+					if (0 == this->indx)
+					{
+						// Actually the URI is only a query
+						lastPosition = indx + 1;
+						location = partQuery;
+						return true;
+					}
+					// Suffix reference : We were dealing with a host name in fact
+					location = partServerForSure;
+					--indx;
+					break;
+				}
+				case ':' :
+				{
+					// End of the scheme
+					infos.scheme.append(str, 0, indx);
+					infos.scheme.toLower();
+					lastPosition = indx + 1;
+					location = partServer;
+					return true;
+				}
 			}
 			return true;
 		}
@@ -344,51 +315,51 @@ namespace Yuni
 			switch (c)
 			{
 				case '.':
+				{
+					if (tag <= 2) // With slashes or not at the begining, it is a relative filename
 					{
-						if (tag <= 2) // With slashes or not at the begining, it is a relative filename
-						{
-							location = partPath;
-							lastPosition = indx;
-						}
-						break;
+						location = partPath;
+						lastPosition = indx;
 					}
+					break;
+				}
 				case '/': // Strange, keeping a count of slashes for further investigation
+				{
+					++tag;
+					if (3 == tag) // Too many slashes, definitely a path
 					{
-						++tag;
-						if (3 == tag) // Too many slashes, definitely a path
+						location = partPath;
+						lastPosition = indx;
+					}
+					break;
+				}
+				default:
+				{
+					switch (tag)
+					{
+						case 0: // Not a host name but a path
 						{
 							location = partPath;
-							lastPosition = indx;
+							tag = 0;
+							break;
 						}
-						break;
-					}
-				default:
-					{
-						switch (tag)
+						case 1: // Not a host name but a path
 						{
-							case 0: // Not a host name but a path
-								{
-									location = partPath;
-									tag = 0;
-									break;
-								}
-							case 1: // Not a host name but a path
-								{
-									location = partPath;
-									lastPosition = indx - 1;
-									tag = 0;
-									break;
-								}
-							case 2: // Oh it really is a host name
-								{
-									location = partServerForSure;
-									lastPosition = indx;
-									--indx;
-									tag = 0;
-									break;
-								}
+							location = partPath;
+							lastPosition = indx - 1;
+							tag = 0;
+							break;
+						}
+						case 2: // Oh it really is a host name
+						{
+							location = partServerForSure;
+							lastPosition = indx;
+							--indx;
+							tag = 0;
+							break;
 						}
 					}
+				}
 			}
 			return true;
 		}
@@ -400,93 +371,93 @@ namespace Yuni
 			switch (c)
 			{
 				case '@': // We were actually deal with a user name
+				{
+					infos.user.append(str, indx - lastPosition, lastPosition);
+					if (infos.user.empty())
+						return false;
+					lastPosition = indx + 1;
+					tag = 0;
+					break;
+				}
+				case '[': // Begining of an IPv6 address
+				{
+					if (tag) // only one bracket is allowed
+						return false;
+					tag = 1; // A tag has been found
+					break;
+				}
+				case ']': // Ending of an IPv6 address
+				{
+					if (1 != tag) // must begin by a bracket
+						return false;
+					// New state : a tag has been found and has been closed
+					tag = 2;
+					break;
+				}
+				case '/': // Begining of a path
+				{
+					if (tag != 1)
 					{
-						infos.user.append(str, indx - lastPosition, lastPosition);
-						if (infos.user.empty())
+						// We are not inside of an IPv6 address
+						infos.server.append(str, indx - lastPosition, lastPosition);
+						if (infos.server.empty())
+							return false;
+						lastPosition = indx;
+						location = partPath;
+					}
+					else
+						// Forbidden [::/] is not a valid IPv6 address for sure
+						return false;
+					break;
+				}
+				case ':': // Port value or IPv6 address ?
+				{
+					if (tag != 1)
+					{
+						// We are not inside of an IPv6 address
+						// Thus it is the begining of a port value
+						infos.server.append(str, indx - lastPosition, lastPosition);
+						if (infos.server.empty())
 							return false;
 						lastPosition = indx + 1;
-						tag = 0;
-						break;
+						location = partPort;
 					}
-				case '[': // Begining of an IPv6 address
-					{
-						if (tag) // only one bracket is allowed
-							return false;
-						tag = 1; // A tag has been found
-						break;
-					}
-				case ']': // Ending of an IPv6 address
-					{
-						if (1 != tag) // must begin by a bracket
-							return false;
-						// New state : a tag has been found and has been closed
-						tag = 2;
-						break;
-					}
-				case '/': // Begining of a path
-					{
-						if (tag != 1)
-						{
-							// We are not inside of an IPv6 address
-							infos.server.append(str, indx - lastPosition, lastPosition);
-							if (infos.server.empty())
-								return false;
-							lastPosition = indx;
-							location = partPath;
-						}
-						else
-							// Forbidden [::/] is not a valid IPv6 address for sure
-							return false;
-						break;
-					}
-				case ':': // Port value or IPv6 address ?
-					{
-						if (tag != 1)
-						{
-							// We are not inside of an IPv6 address
-							// Thus it is the begining of a port value
-							infos.server.append(str, indx - lastPosition, lastPosition);
-							if (infos.server.empty())
-								return false;
-							lastPosition = indx + 1;
-							location = partPort;
-						}
-						break;
-					}
+					break;
+				}
 				case '?': // Query ?
+				{
+					if (tag != 1)
 					{
-						if (tag != 1)
-						{
-							// We are not inside of an IPv6 address
-							// It is the begining of a query
-							infos.server.append(str, indx - lastPosition, lastPosition);
-							if (infos.server.empty(), lastPosition)
-								return false;
-							lastPosition = indx + 1;
-							location = partQuery;
-						}
-						else
-							// forbidden  [::?] is not a valid IPv6 address for sure
+						// We are not inside of an IPv6 address
+						// It is the begining of a query
+						infos.server.append(str, indx - lastPosition, lastPosition);
+						if (infos.server.empty(), lastPosition)
 							return false;
-						break;
+						lastPosition = indx + 1;
+						location = partQuery;
 					}
+					else
+						// forbidden  [::?] is not a valid IPv6 address for sure
+						return false;
+					break;
+				}
 				case '#': // Fragment ?
+				{
+					if (tag != 1)
 					{
-						if (tag != 1)
-						{
-							// We are not inside of an IPv6 address
-							// It is the begining of a fragment
-							infos.server.append(str, indx - lastPosition, lastPosition);
-							if (infos.server.empty())
-								return false;
-							lastPosition = indx + 1;
-							location = partFragment;
-						}
-						else
-							// forbidden  [::#] is not a valid IPv6 address for sure
+						// We are not inside of an IPv6 address
+						// It is the begining of a fragment
+						infos.server.append(str, indx - lastPosition, lastPosition);
+						if (infos.server.empty())
 							return false;
-						break;
+						lastPosition = indx + 1;
+						location = partFragment;
 					}
+					else
+						// forbidden  [::#] is not a valid IPv6 address for sure
+						return false;
+					break;
+				}
 			}
 			return true;
 		}
@@ -498,60 +469,60 @@ namespace Yuni
 			switch (c)
 			{
 				case '@': // We may deal with a password and the server was actually a user name
+				{
+					if (infos.user.empty() and infos.password.empty())
 					{
-						if (infos.user.empty() and infos.password.empty())
-						{
-							// Oups... Actually it was not a port but a password...
-							infos.user = infos.server;
-							infos.password.append(str, indx - lastPosition, lastPosition);
-							infos.server.clear();
-							tag = 0;
-							location = partServerForSure;
-							lastPosition = indx + 1;
-							return true;
-						}
-						return false;
-						break;
+						// Oups... Actually it was not a port but a password...
+						infos.user = infos.server;
+						infos.password.append(str, indx - lastPosition, lastPosition);
+						infos.server.clear();
+						tag = 0;
+						location = partServerForSure;
+						lastPosition = indx + 1;
+						return true;
 					}
+					return false;
+					break;
+				}
 				case '/': // Begining of a path
+				{
+					ShortString16 intstr(str, lastPosition, indx - lastPosition);
+					if (not intstr.to(infos.port))
 					{
-						ShortString16 intstr(str, lastPosition, indx - lastPosition);
-						if (not intstr.to(infos.port))
-						{
-							// May be a invalid sequence
-							if (indx - lastPosition != 1 or '\0' != str[lastPosition])
-								return false;
-						}
-						lastPosition = indx;
-						location = partPath;
-						break;
+						// May be a invalid sequence
+						if (indx - lastPosition != 1 or '\0' != str[lastPosition])
+							return false;
 					}
+					lastPosition = indx;
+					location = partPath;
+					break;
+				}
 				case '#': // Begining of a fragment
+				{
+					ShortString16 intstr(str, lastPosition, indx - lastPosition);
+					if (not intstr.to(infos.port))
 					{
-						ShortString16 intstr(str, lastPosition, indx - lastPosition);
-						if (not intstr.to(infos.port))
-						{
-							// May be a invalid sequence
-							if (indx - lastPosition != 1 or '\0' != str[lastPosition])
-								return false;
-						}
-						lastPosition = indx + 1;
-						location = partFragment;
-						break;
+						// May be a invalid sequence
+						if (indx - lastPosition != 1 or '\0' != str[lastPosition])
+							return false;
 					}
+					lastPosition = indx + 1;
+					location = partFragment;
+					break;
+				}
 				case '?': // Begining of a query
+				{
+					ShortString16 intstr(str, lastPosition, indx - lastPosition);
+					if (not intstr.to(infos.port))
 					{
-						ShortString16 intstr(str, lastPosition, indx - lastPosition);
-						if (not intstr.to(infos.port))
-						{
-							// May be a invalid sequence
-							if (indx - lastPosition != 1 or '\0' != str[lastPosition])
-								return false;
-						}
-						lastPosition = indx + 1;
-						location = partQuery;
-						break;
+						// May be a invalid sequence
+						if (indx - lastPosition != 1 or '\0' != str[lastPosition])
+							return false;
 					}
+					lastPosition = indx + 1;
+					location = partQuery;
+					break;
+				}
 			}
 			return true;
 		}
@@ -564,24 +535,24 @@ namespace Yuni
 			switch (c)
 			{
 				case '?' : // Begining of a query
-					{
-						infos.path.append(str, indx - lastPosition, lastPosition);
-						location = partQuery;
-						lastPosition = indx + 1;
-						break;
-					}
+				{
+					infos.path.append(str, indx - lastPosition, lastPosition);
+					location = partQuery;
+					lastPosition = indx + 1;
+					break;
+				}
 				case '#' : // Begining of a fragment
-					{
-						infos.path.append(str, indx - lastPosition, lastPosition);
-						location = partFragment;
-						lastPosition = indx + 1;
-						break;
-					}
+				{
+					infos.path.append(str, indx - lastPosition, lastPosition);
+					location = partFragment;
+					lastPosition = indx + 1;
+					break;
+				}
 				case '.' :
-					{
-						pMustRemoveDotSegments = true;
-						break;
-					}
+				{
+					pMustRemoveDotSegments = true;
+					break;
+				}
 			}
 			return true;
 		}
@@ -596,12 +567,12 @@ namespace Yuni
 			switch (c)
 			{
 				case '#' : // Begining of a fragment
-					{
-						infos.query.append(str, indx - lastPosition, lastPosition);
-						location = partFragment;
-						lastPosition = indx + 1;
-						break;
-					}
+				{
+					infos.query.append(str, indx - lastPosition, lastPosition);
+					location = partFragment;
+					lastPosition = indx + 1;
+					break;
+				}
 			}
 			return true;
 		}
@@ -628,49 +599,49 @@ namespace Yuni
 				switch (location)
 				{
 					case partPath:
-						{
-							if (not this->extractPath(c))
-								return;
-							break;
-						}
+					{
+						if (not this->extractPath(c))
+							return;
+						break;
+					}
 					case partQuery:
-						{
-							if (not this->extractQuery(c))
-								return;
-							break;
-						}
+					{
+						if (not this->extractQuery(c))
+							return;
+						break;
+					}
 					case partScheme:
-						{
-							if (not this->extractScheme(c))
-								return;
-							break;
-						}
+					{
+						if (not this->extractScheme(c))
+							return;
+						break;
+					}
 					case partServer:
-						{
-							if (not this->extractAuthorty(c))
-								return;
-							break;
-						}
+					{
+						if (not this->extractAuthorty(c))
+							return;
+						break;
+					}
 					case partServerForSure:
-						{
-							if (not this->extractServerInfos(c))
-								return;
-							break;
-						}
+					{
+						if (not this->extractServerInfos(c))
+							return;
+						break;
+					}
 					case partPort:
-						{
-							if (not this->extractPort(c))
-								return;
-							break;
-						}
+					{
+						if (not this->extractPort(c))
+							return;
+						break;
+					}
 					case partFragment:
-						{
-							if (not this->extractFragment())
-								return;
-							break;
-						}
+					{
+						if (not this->extractFragment())
+							return;
+						break;
+					}
 					default:
-						return; // We should not be in the middle of nowhere
+					return; // We should not be in the middle of nowhere
 
 				} // switch location
 			} // for each char
@@ -693,8 +664,8 @@ namespace Yuni
 	{}
 
 
-	Uri::Uri(const Uri& rhs) :
-		pInfos(rhs.pInfos)
+	Uri::Uri(const Uri& rhs)
+		: pInfos(rhs.pInfos)
 	{}
 
 

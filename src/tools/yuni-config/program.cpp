@@ -1,41 +1,12 @@
 /*
-** YUNI's default license is the GNU Lesser Public License (LGPL), with some
-** exclusions (see below). This basically means that you can get the full source
-** code for nothing, so long as you adhere to a few rules.
+** This file is part of libyuni, a cross-platform C++ framework (http://libyuni.org).
 **
-** Under the LGPL you may use YUNI for any purpose you wish, and modify it if you
-** require, as long as you:
+** This Source Code Form is subject to the terms of the Mozilla Public License
+** v.2.0. If a copy of the MPL was not distributed with this file, You can
+** obtain one at http://mozilla.org/MPL/2.0/.
 **
-** Pass on the (modified) YUNI source code with your software, with original
-** copyrights intact :
-**  * If you distribute electronically, the source can be a separate download
-**    (either from your own site if you modified YUNI, or to the official YUNI
-**    website if you used an unmodified version) – just include a link in your
-**    documentation
-**  * If you distribute physical media, the YUNI source that you used to build
-**    your application should be included on that media
-** Make it clear where you have customised it.
-**
-** In addition to the LGPL license text, the following exceptions / clarifications
-** to the LGPL conditions apply to YUNI:
-**
-**  * Making modifications to YUNI configuration files, build scripts and
-**    configuration headers such as yuni/platform.h in order to create a
-**    customised build setup of YUNI with the otherwise unmodified source code,
-**    does not constitute a derived work
-**  * Building against YUNI headers which have inlined code does not constitute a
-**    derived work
-**  * Code which subclasses YUNI classes outside of the YUNI libraries does not
-**    form a derived work
-**  * Statically linking the YUNI libraries into a user application does not make
-**    the user application a derived work.
-**  * Using source code obsfucation on the YUNI source code when distributing it
-**    is not permitted.
-** As per the terms of the LGPL, a "derived work" is one for which you have to
-** distribute source code for, so when the clauses above define something as not
-** a derived work, it means you don't have to distribute source code for it.
-** However, the original YUNI source code with all modifications must always be
-** made available.
+** github: https://github.com/libyuni/libyuni/
+** gitlab: https://gitlab.com/libyuni/libyuni/ (mirror)
 */
 #include "program.h"
 #include <yuni/io/directory.h>
@@ -60,7 +31,7 @@ namespace Yuni
 		pOptCxxFlags(false),
 		pOptLibFlags(false),
 		pOptPrintCompilerByDefault(false),
-		pOptPrintErrors(false),
+		pOptPrintErrors(true),
 		pOptPrintModulesDeps(false),
 		pOptDebug(false),
 		pOptCompiler(YUNI_LIBCONFIG_DEFAULT_COMPILER)
@@ -122,17 +93,21 @@ namespace Yuni
 
 		// Help
 		opts.addParagraph("\nHelp\n  * : Option related to the selected version of libyuni");
-		opts.addFlag(pOptPrintErrors, ' ', "verbose", "Print any error message");
+		bool quiet = false;
+		opts.addFlag(quiet, ' ', "quiet", "Suppress error messages");
 		opts.addFlag(pOptDebug, ' ', "debug", "Print debug messages");
 		opts.addFlag(pOptVersion, 'v', "version", "Print the version and exit");
 
 		if (!opts(argc, argv))
 		{
 			pExitStatus = opts.errors() ? 1 /*error*/ : 0;
-			if (pOptPrintErrors || pOptDebug)
+			if ((pOptPrintErrors and not quiet) || pOptDebug)
 				std::cout << "Error when parsing the command line\n";
 			return false;
 		}
+
+		if (quiet)
+			pOptPrintErrors = false;
 
 		if (pOptPrintCompilerByDefault)
 		{
@@ -409,11 +384,14 @@ namespace Yuni
 		const String::List::const_iterator end = pOptModules.end();
 		for (String::List::const_iterator i = pOptModules.begin(); i != end; ++i)
 		{
-			if (not isCoreModule(*i) && version.modules.end() == std::find(version.modules.begin(), version.modules.end(), *i))
+			if (not isCoreModule(*i))
 			{
-				pExitStatus = 3;
-				//if (pOptPrintErrors)
-				std::cerr << "Error: The module '" << *i << "' is required but not available\n";
+				if (version.modules.end() == std::find(version.modules.begin(), version.modules.end(), *i))
+				{
+					pExitStatus = 3;
+					if (pOptPrintErrors)
+						std::cerr << "error: The module '" << *i << "' is required but not available\n";
+				}
 			}
 		}
 		return (0 == pExitStatus);
@@ -429,8 +407,10 @@ namespace Yuni
 			pExitStatus = 1;
 			return false;
 		}
+
 		// Dependencies
 		computeDependencies(version);
+
 		if (pOptPrintModulesDeps)
 		{
 			printModulesDependencies();

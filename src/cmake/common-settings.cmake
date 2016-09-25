@@ -15,9 +15,9 @@ set_property(GLOBAL PROPERTY USE_FOLDERS true)
 
 
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "release" OR "${CMAKE_BUILD_TYPE}" STREQUAL "RELEASE")
-	set(YUNI_)
+	set(YUNI_TARGET "release")
 else()
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_DEBUG}")
+	set(YUNI_TARGET "debug")
 endif()
 
 
@@ -73,7 +73,10 @@ set(YUNI_COMMON_CC_OPTIONS  "${YUNI_COMMON_CC_OPTIONS} -D_REENTRANT -DXUSE_MTSAF
 set(YUNI_COMMON_CC_OPTIONS  "${YUNI_COMMON_CC_OPTIONS} -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
 set(YUNI_COMMON_CXX_OPTIONS  "")
 
-set(COMMON_MSVC_FLAGS "/W3 /MP4 /Zi")
+set(COMMON_MSVC_FLAGS "/W3 /MP4")
+if ("${YUNI_TARGET}" STREQUAL "debug")
+	set(COMMON_MSVC_FLAGS "${COMMON_MSVC_FLAGS} /Zi")
+endif()
 set(COMMON_MSVC_FLAGS "${COMMON_MSVC_FLAGS} /DREENTRANT /D_LARGEFILE_SOURCE /D_LARGEFILE64_SOURCE /D_FILE_OFFSET_BITS=64")
 set(COMMON_MSVC_FLAGS "${COMMON_MSVC_FLAGS} /DUNICODE /D_UNICODE")
 
@@ -85,25 +88,56 @@ set(YUNI_COMMON_CC_OPTIONS_UNIX   "${YUNI_COMMON_CC_OPTIONS} -fPIC")
 
 include(CheckCXXCompilerFlag)
 if(NOT MSVC)
+	check_cxx_compiler_flag("-std=gnu++14"   YUNI_HAS_GNU14_SUPPORT)
+	check_cxx_compiler_flag("-std=gnu++11"   YUNI_HAS_GNU11_SUPPORT)
 	check_cxx_compiler_flag("-std=c++14"     YUNI_HAS_CPP14_SUPPORT)
 	check_cxx_compiler_flag("-std=c++11"     YUNI_HAS_CPP11_SUPPORT)
 	check_cxx_compiler_flag("-std=c++0x"     YUNI_HAS_GCC_CPP0X_SUPPORT)
 	check_cxx_compiler_flag("-stdlib=libc++" YUNI_HAS_LIB_CPP11_SUPPORT) # clang, Apple gcc...
 
-	if (YUNI_HAS_CPP14_SUPPORT)
-		set(YUNI_COMMON_CXX_OPTIONS  "${YUNI_COMMON_CXX_OPTIONS} -std=c++14")
-	else()
-		if (YUNI_HAS_CPP11_SUPPORT)
-			set(YUNI_COMMON_CXX_OPTIONS  "${YUNI_COMMON_CXX_OPTIONS} -std=c++11")
+	if (NOT APPLE)
+		if (YUNI_HAS_GNU14_SUPPORT)
+			set(YUNI_COMMON_CXX_OPTIONS  "${YUNI_COMMON_CXX_OPTIONS} -std=gnu++14")
+			set(YUNI_CPP_STD "-std=gnu++14" CACHE STRING "c++std" FORCE)
 		else()
-			if (YUNI_HAS_GCC_CPP0X_SUPPORT)
-				set(YUNI_COMMON_CXX_OPTIONS  "${YUNI_COMMON_CXX_OPTIONS} -std=c++0x")
+			if (YUNI_HAS_GNU11_SUPPORT)
+				set(YUNI_COMMON_CXX_OPTIONS  "${YUNI_COMMON_CXX_OPTIONS} -std=gnu++11")
+				set(YUNI_CPP_STD "-std=gnu++11" CACHE STRING "c++std" FORCE)
+			else()
+				if (YUNI_HAS_GCC_CPP0X_SUPPORT)
+					set(YUNI_COMMON_CXX_OPTIONS  "${YUNI_COMMON_CXX_OPTIONS} -std=c++0x")
+					set(YUNI_CPP_STD "-std=c++0x" CACHE STRING "c++std" FORCE)
+				endif()
+			endif()
+		endif()
+	else()
+		if (YUNI_HAS_CPP14_SUPPORT)
+			set(YUNI_COMMON_CXX_OPTIONS  "${YUNI_COMMON_CXX_OPTIONS} -std=c++14")
+			set(YUNI_CPP_STD "-std=c++14" CACHE STRING "c++std" FORCE)
+		else()
+			if (YUNI_HAS_CPP11_SUPPORT)
+				set(YUNI_COMMON_CXX_OPTIONS  "${YUNI_COMMON_CXX_OPTIONS} -std=c++11")
+				set(YUNI_CPP_STD "-std=c++11" CACHE STRING "c++std" FORCE)
+			else()
+				if (YUNI_HAS_GCC_CPP0X_SUPPORT)
+					set(YUNI_COMMON_CXX_OPTIONS  "${YUNI_COMMON_CXX_OPTIONS} -std=c++0x")
+					set(YUNI_CPP_STD "-std=c++0x" CACHE STRING "c++std" FORCE)
+				endif()
 			endif()
 		endif()
 	endif()
+
+
 	if (YUNI_HAS_LIB_CPP11_SUPPORT AND (NOT CLANG OR APPLE))
 		# clang seems to not like the option -stdlib, but required on MacOS...
 		set(YUNI_COMMON_CXX_OPTIONS  "${YUNI_COMMON_CXX_OPTIONS} -stdlib=libc++")
+	endif()
+
+
+	# transform some warnings into errors to avoid common mistakes
+	check_cxx_compiler_flag("-Werror=switch"   YUNI_HAS_W2E_SWITCH)
+	if (YUNI_HAS_W2E_SWITCH)
+		set(YUNI_COMMON_CXX_OPTIONS  "${YUNI_COMMON_CXX_OPTIONS} -Werror=switch")
 	endif()
 
 endif()
@@ -151,13 +185,13 @@ if(MINGW)
 endif()
 
 if(MSVC)
-	set(CMAKE_C_FLAGS_DEBUG   "${COMMON_MSVC_FLAGS} /MDd /GR /Ot /Od /EHsc /RTC1")
-	set(CMAKE_CXX_FLAGS_DEBUG "${COMMON_MSVC_FLAGS} /MDd /GR /Ot /Od /EHsc /RTC1 /fp:except /RTCc")
+	set(CMAKE_C_FLAGS_DEBUG   "${COMMON_MSVC_FLAGS} /MD /GR /Ot /Od /EHsc")
+	set(CMAKE_CXX_FLAGS_DEBUG "${COMMON_MSVC_FLAGS} /MD /GR /Ot /Od /EHsc /fp:except")
 
 	set(MSVC_RELEASE_FLAGS)
 
 	# O2x: optimization
-	set(MSVC_RELEASE_FLAGS "${MSVC_RELEASE_FLAGS} /O2")
+	set(MSVC_RELEASE_FLAGS "${MSVC_RELEASE_FLAGS} /Ox")
 	# Prefer speed instead of size
 	set(MSVC_RELEASE_FLAGS "${MSVC_RELEASE_FLAGS} /Ot")
 	# Omit frame pointer
@@ -199,9 +233,14 @@ if (NOT MSVC)
 
 	# debugging symbols
 	compile_flag("-g"     DEBUG_G     DEBUG RELWITHDEBINFO)
+	compile_flag("-g3"    DEBUG_G3    DEBUG RELWITHDEBINFO)
 	compile_flag("-gfull" DEBUG_GFULL DEBUG RELWITHDEBINFO)
 	compile_flag("-ggdb"  DEBUG_GDB   DEBUG RELWITHDEBINFO)
 	compile_flag("-ggdb3" DEBUG_GDB3  DEBUG RELWITHDEBINFO)
+
+	# extra debugging tools
+	#compile_flag("-fsanitize=undefined" DEBUG_SANITIZE_UNDEF DEBUG RELWITHDEBINFO)
+	#compile_flag("-fsanitize=address"   DEBUG_SANITIZE_ADDR  DEBUG RELWITHDEBINFO)
 
 	# warnings
 	compile_flag("-W"                         W   RELEASE DEBUG RELWITHDEBINFO)
@@ -216,6 +255,7 @@ if (NOT MSVC)
 	compile_flag("-Wcast-align"               W_CAST_ALIGN   RELEASE DEBUG RELWITHDEBINFO)
 	compile_flag("-Wuninitialized"            W_UNINITIALIZED   RELEASE DEBUG RELWITHDEBINFO)
 	compile_flag("-Wdocumentation"            W_DOCUMENTATION   RELEASE DEBUG RELWITHDEBINFO)
+	#compile_flag("-Wold-style-cast"           W_OLD_STYLE_CAST  RELEASE DEBUG RELWITHDEBINFO)
 endif()
 
 

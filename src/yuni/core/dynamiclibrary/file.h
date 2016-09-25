@@ -1,41 +1,12 @@
 /*
-** YUNI's default license is the GNU Lesser Public License (LGPL), with some
-** exclusions (see below). This basically means that you can get the full source
-** code for nothing, so long as you adhere to a few rules.
+** This file is part of libyuni, a cross-platform C++ framework (http://libyuni.org).
 **
-** Under the LGPL you may use YUNI for any purpose you wish, and modify it if you
-** require, as long as you:
+** This Source Code Form is subject to the terms of the Mozilla Public License
+** v.2.0. If a copy of the MPL was not distributed with this file, You can
+** obtain one at http://mozilla.org/MPL/2.0/.
 **
-** Pass on the (modified) YUNI source code with your software, with original
-** copyrights intact :
-**  * If you distribute electronically, the source can be a separate download
-**    (either from your own site if you modified YUNI, or to the official YUNI
-**    website if you used an unmodified version) – just include a link in your
-**    documentation
-**  * If you distribute physical media, the YUNI source that you used to build
-**    your application should be included on that media
-** Make it clear where you have customised it.
-**
-** In addition to the LGPL license text, the following exceptions / clarifications
-** to the LGPL conditions apply to YUNI:
-**
-**  * Making modifications to YUNI configuration files, build scripts and
-**    configuration headers such as yuni/platform.h in order to create a
-**    customised build setup of YUNI with the otherwise unmodified source code,
-**    does not constitute a derived work
-**  * Building against YUNI headers which have inlined code does not constitute a
-**    derived work
-**  * Code which subclasses YUNI classes outside of the YUNI libraries does not
-**    form a derived work
-**  * Statically linking the YUNI libraries into a user application does not make
-**    the user application a derived work.
-**  * Using source code obsfucation on the YUNI source code when distributing it
-**    is not permitted.
-** As per the terms of the LGPL, a "derived work" is one for which you have to
-** distribute source code for, so when the clauses above define something as not
-** a derived work, it means you don't have to distribute source code for it.
-** However, the original YUNI source code with all modifications must always be
-** made available.
+** github: https://github.com/libyuni/libyuni/
+** gitlab: https://gitlab.com/libyuni/libyuni/ (mirror)
 */
 #pragma once
 /*!
@@ -64,6 +35,53 @@ namespace Yuni
 */
 namespace DynamicLibrary
 {
+
+
+	/*!
+	** \brief Relocation options
+	**
+	** When an object is brought into the address space of a process, it may
+	** contain references to symbols whose addresses are not known until the
+	** object is loaded. These references shall be relocated before the
+	** symbols can be accessed (man dlopen).
+	**
+	** These options are actually ignored on Windows.
+	*/
+	enum class Relocation
+	{
+		/*!
+		** \brief Relocations shall be performed at an implementation-defined
+		** time (see RTLD_LAZY, Unix only)
+		*/
+		lazy,
+		/*!
+		** \brief All necessary relocations shall be performed when the object
+		** is first loaded (see RTLD_NOW, Unix only)
+		*/
+		now,
+	};
+
+	/*!
+	** \brief Scope of visibility options
+	*/
+	enum class Visibility
+	{
+		/*!
+		** \brief OS Dependant default implementation
+		*/
+		vdefault,
+		/*!
+		** \brief  The object’s symbols shall be made available for the
+		** relocation processing of any other object (Unix only)
+		*/
+		global,
+		/*!
+		** \brief The object’s symbols shall not be made available for the
+		** relocation processing of any other object (Unix only)
+		*/
+		local,
+	};
+
 
 
 	/*!
@@ -137,67 +155,18 @@ namespace DynamicLibrary
 		//! An invalid handle
 		static const Handle NullHandle;
 
-		/*!
-		** \brief Relocation options
-		**
-		** When an object is brought into the address space of a process, it may
-		** contain references to symbols whose addresses are not known until the
-		** object is loaded. These references shall be relocated before the
-		** symbols can be accessed (man dlopen).
-		**
-		** These options are actually ignored on Windows.
-		*/
-		enum Relocation
-		{
-			/*!
-			** \brief Relocations shall be performed at an implementation-defined
-			** time (see RTLD_LAZY, Unix only)
-			*/
-			relocationLazy,
-			/*!
-			** \brief All necessary relocations shall be performed when the object
-			** is first loaded (see RTLD_NOW, Unix only)
-			*/
-			relocationNow,
-		};
-
-		/*!
-		** \brief Scope of visibility options
-		*/
-		enum Visibility
-		{
-			/*!
-			** \brief OS Dependant default implementation
-			*/
-			visibilityDefault,
-			/*!
-			** \brief  The object’s symbols shall be made available for the
-			** relocation processing of any other object (Unix only)
-			*/
-			visibilityGlobal,
-			/*!
-			** \brief The object’s symbols shall not be made available for the
-			** relocation processing of any other object (Unix only)
-			*/
-			visibilityLocal,
-		};
-
 
 	public:
 		//! \name Constructor & DEstructor
 		//@{
-		/*!
-		** \brief Default constructor
-		*/
+		//! Default constructor
 		File();
-
 		/*!
 		** \brief Constructor - Load an dynamic library
 		**
 		** \param filename Filename of the library to load
 		*/
 		explicit File(const AnyString& filename);
-
 		/*!
 		** \brief Constructor - Load an dynamic library
 		**
@@ -205,12 +174,10 @@ namespace DynamicLibrary
 		** \param relocation The relocation mode (no effect on Windows)
 		** \param visibility The visibility mode (no effect on Windows)
 		*/
-		File(const AnyString& filename, Relocation relocation /* = relocationLazy */,
-			Visibility visibility = visibilityDefault);
-
+		File(const AnyString& filename, Relocation relocation /*= lazy*/,
+			Visibility visibility = Visibility::vdefault);
 		/*!
 		** \brief Destructor
-		**
 		** The library will be automatically unloaded if needed.
 		*/
 		~File();
@@ -244,8 +211,8 @@ namespace DynamicLibrary
 		** \param v The visibility mode (no effect on Windows)
 		** \return True if the library has been loaded
 		*/
-		bool loadFromFile(const AnyString& filename, Relocation r = relocationLazy,
-			Visibility v = visibilityDefault);
+		bool loadFromFile(const AnyString& filename, Relocation r = Relocation::lazy,
+			Visibility v = Visibility::vdefault);
 
 		/*!
 		** \brief Load a dynamic library from its filename
@@ -260,8 +227,8 @@ namespace DynamicLibrary
 		** \param v The visibility mode (no effect on Windows)
 		** \return True if the library has been loaded
 		*/
-		bool loadFromRawFilename(const AnyString& filename, Relocation r = relocationLazy,
-			Visibility v = visibilityDefault);
+		bool loadFromRawFilename(const AnyString& filename, Relocation r = Relocation::lazy,
+			Visibility v = Visibility::vdefault);
 
 		/*!
 		** \brief Unload the dynamic library
@@ -362,4 +329,3 @@ namespace DynamicLibrary
 #include "file.hxx"
 
 #undef YUNI_DYNAMICLIBRARY_OS_HANDLE
-

@@ -1,41 +1,12 @@
 /*
-** YUNI's default license is the GNU Lesser Public License (LGPL), with some
-** exclusions (see below). This basically means that you can get the full source
-** code for nothing, so long as you adhere to a few rules.
+** This file is part of libyuni, a cross-platform C++ framework (http://libyuni.org).
 **
-** Under the LGPL you may use YUNI for any purpose you wish, and modify it if you
-** require, as long as you:
+** This Source Code Form is subject to the terms of the Mozilla Public License
+** v.2.0. If a copy of the MPL was not distributed with this file, You can
+** obtain one at http://mozilla.org/MPL/2.0/.
 **
-** Pass on the (modified) YUNI source code with your software, with original
-** copyrights intact :
-**  * If you distribute electronically, the source can be a separate download
-**    (either from your own site if you modified YUNI, or to the official YUNI
-**    website if you used an unmodified version) – just include a link in your
-**    documentation
-**  * If you distribute physical media, the YUNI source that you used to build
-**    your application should be included on that media
-** Make it clear where you have customised it.
-**
-** In addition to the LGPL license text, the following exceptions / clarifications
-** to the LGPL conditions apply to YUNI:
-**
-**  * Making modifications to YUNI configuration files, build scripts and
-**    configuration headers such as yuni/platform.h in order to create a
-**    customised build setup of YUNI with the otherwise unmodified source code,
-**    does not constitute a derived work
-**  * Building against YUNI headers which have inlined code does not constitute a
-**    derived work
-**  * Code which subclasses YUNI classes outside of the YUNI libraries does not
-**    form a derived work
-**  * Statically linking the YUNI libraries into a user application does not make
-**    the user application a derived work.
-**  * Using source code obsfucation on the YUNI source code when distributing it
-**    is not permitted.
-** As per the terms of the LGPL, a "derived work" is one for which you have to
-** distribute source code for, so when the clauses above define something as not
-** a derived work, it means you don't have to distribute source code for it.
-** However, the original YUNI source code with all modifications must always be
-** made available.
+** github: https://github.com/libyuni/libyuni/
+** gitlab: https://gitlab.com/libyuni/libyuni/ (mirror)
 */
 #pragma once
 #include "../../yuni.h"
@@ -51,9 +22,43 @@ namespace Environment
 {
 
 	/*!
+	** \brief Get if a variable exists (is defined)
+	**
+	** \param name Name of the variable (must be zero-terminated)
+	** \return true if present, false otherwise
+	*/
+	YUNI_DECL bool Exists(const AnyString& name);
+
+	/*!
+	** \brief Get a value from the current environment and convert it as a bool
+	**
+	** \param name Name of the variable (must be zero-terminated)
+	** \param defvalue The default value to take if the value of the variable is empty
+	** \return true if present and equal to "1", "on" or "true"
+	*/
+	YUNI_DECL bool ReadAsBool(const AnyString& name, bool defvalue = false);
+
+	/*!
+	** \brief Get a value from the current environment and convert it as an integer
+	**
+	** \param name Name of the variable (must be zero-terminated)
+	** \param defvalue The default value to take if the value of the variable is empty
+	*/
+	YUNI_DECL yint64 ReadAsInt64(const AnyString& name, yint64 defvalue = 0);
+
+	/*!
+	** \brief Get a value from the current environment and convert it as an unsigned integer
+	**
+	** \param name Name of the variable (must be zero-terminated)
+	** \param defvalue The default value to take if the value of the variable is empty
+	*/
+	YUNI_DECL yuint64 ReadAsUInt64(const AnyString& name, yuint64 defvalue = 0);
+
+
+	/*!
 	** \brief Get a value from the current environment
 	**
-	** \param name Name of the variable
+	** \param name Name of the variable (must be zero-terminated)
 	** \return The value of the variable, empty is an error has occured
 	*/
 	YUNI_DECL String Read(const AnyString& name);
@@ -62,7 +67,7 @@ namespace Environment
 	/*!
 	** \brief Get a value from the current environment (Yuni::String version)
 	**
-	** \param name Name of the variable
+	** \param name Name of the variable (must be zero-terminated)
 	** \param[out] out Variable of type 'string'/'container' where the value will be appened
 	** \param emptyBefore True to empty the parameter `out` before
 	** \return True if the operation succeeded, false otherwise
@@ -72,7 +77,7 @@ namespace Environment
 	/*!
 	** \brief Get a value from the current environment (Yuni::Clob version)
 	**
-	** \param name Name of the variable
+	** \param name Name of the variable (must be zero-terminated)
 	** \param[out] out Variable of type 'string'/'container' where the value will be appened
 	** \param emptyBefore True to empty the parameter `out` before
 	** \return True if the operation succeeded, false otherwise
@@ -81,9 +86,25 @@ namespace Environment
 
 
 
+	/*!
+	** \brief Unset an environment variable
+	**
+	** \param name Name of the variable (must be zero-terminated)
+	** \param value New content
+	*/
+	YUNI_DECL void Set(const AnyString& name, const AnyString& value);
+
+
+	/*!
+	** \brief Unset an environment variable
+	**
+	** \param name Name of the variable (must be zero-terminated)
+	*/
+	YUNI_DECL void Unset(const AnyString& name);
+
+
 
 
 } // namespace Environment
 } // namespace System
 } // namespace Yuni
-

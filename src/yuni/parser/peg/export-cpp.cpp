@@ -1,41 +1,12 @@
 /*
-** YUNI's default license is the GNU Lesser Public License (LGPL), with some
-** exclusions (see below). This basically means that you can get the full source
-** code for nothing, so long as you adhere to a few rules.
+** This file is part of libyuni, a cross-platform C++ framework (http://libyuni.org).
 **
-** Under the LGPL you may use YUNI for any purpose you wish, and modify it if you
-** require, as long as you:
+** This Source Code Form is subject to the terms of the Mozilla Public License
+** v.2.0. If a copy of the MPL was not distributed with this file, You can
+** obtain one at http://mozilla.org/MPL/2.0/.
 **
-** Pass on the (modified) YUNI source code with your software, with original
-** copyrights intact :
-**  * If you distribute electronically, the source can be a separate download
-**    (either from your own site if you modified YUNI, or to the official YUNI
-**    website if you used an unmodified version) – just include a link in your
-**    documentation
-**  * If you distribute physical media, the YUNI source that you used to build
-**    your application should be included on that media
-** Make it clear where you have customised it.
-**
-** In addition to the LGPL license text, the following exceptions / clarifications
-** to the LGPL conditions apply to YUNI:
-**
-**  * Making modifications to YUNI configuration files, build scripts and
-**    configuration headers such as yuni/platform.h in order to create a
-**    customised build setup of YUNI with the otherwise unmodified source code,
-**    does not constitute a derived work
-**  * Building against YUNI headers which have inlined code does not constitute a
-**    derived work
-**  * Code which subclasses YUNI classes outside of the YUNI libraries does not
-**    form a derived work
-**  * Statically linking the YUNI libraries into a user application does not make
-**    the user application a derived work.
-**  * Using source code obsfucation on the YUNI source code when distributing it
-**    is not permitted.
-** As per the terms of the LGPL, a "derived work" is one for which you have to
-** distribute source code for, so when the clauses above define something as not
-** a derived work, it means you don't have to distribute source code for it.
-** However, the original YUNI source code with all modifications must always be
-** made available.
+** github: https://github.com/libyuni/libyuni/
+** gitlab: https://gitlab.com/libyuni/libyuni/ (mirror)
 */
 #include "grammar.h"
 #include "../../io/file.h"
@@ -49,13 +20,12 @@ namespace Parser
 namespace PEG
 {
 
-	#include "../../private/parser/peg/__parser.include.cpp.hxx"
-
-
-
-
 	namespace // anonymous
 	{
+
+		#include "yuni/private/parser/peg/__parser.include.cpp.hxx"
+
+
 
 		class CPPConverter final
 		{
@@ -125,103 +95,214 @@ namespace PEG
 		{
 			const Node::Map::const_iterator end = rules.end();
 
-			h << "#ifndef " << headerGuardID << "_H__\n";
-			h << "# define " << headerGuardID << "_H__\n";
-			h << '\n';
-			h << "# include <yuni/yuni.h>\n";
-			h << "# include <yuni/core/string.h>\n";
-			h << "# include <yuni/core/bind.h>\n";
-			h << "# include <yuni/core/dictionary.h>\n";
-			h << "# include <yuni/core/smartptr/intrusive.h>\n";
-			h << "# if (__cplusplus > 199711L || (defined(_MSC_VER) && _MSC_VER >= 1800))\n";
-			h << "#	define " << headerGuardID << "_HAS_CXX_INITIALIZER_LIST  1\n";
-			h << "#	include <initializer_list>\n";
-			h << "# endif";
+			h << "#pragma once\n";
+			h << "#include <yuni/yuni.h>\n";
+			h << "#include <yuni/core/string.h>\n";
+			h << "#include <yuni/core/bind.h>\n";
+			h << "#include <yuni/core/dictionary.h>\n";
+			h << "#include <yuni/core/smartptr/intrusive.h>\n";
+			h << "#include <initializer_list>\n";
 			h << "\n\n";
-			h << "//! Metadata support\n";
-			h << "# define " << headerGuardID << "_HAS_METADATA  1\n";
-			h << '\n';
 			h << '\n';
 			h << '\n';
 			h << '\n';
 			h << '\n';
 
-			for (uint i = 0; i != namespaces.size(); ++i)
+			for (uint32_t i = 0; i != namespaces.size(); ++i)
 				h << "namespace " << namespaces[i] << "\n{\n";
 			h << '\n';
-			h << "	enum ASTRule\n";
+			h << "	enum Rule\n";
 			h << "	{\n";
 			h << "		//! Unknown rule\n";
 			h << "		rgUnknown = 0,\n";
-			uint enumIndex = 1;
+			uint32_t enumIndex = 1;
 			for (Node::Map::const_iterator i = rules.begin(); i != end; ++i, ++enumIndex)
 			{
 				h << "		//! enum for the rule `" << i->first << '`';
 				if (i->second.attributes.inlined)
 					h << " [inline]";
 				h << '\n';
-				h << "		" << i->second.enumID << " = " << enumIndex << ",\n";
+				h << "		" << i->second.enumID << ", // = " << enumIndex << '\n';
 			}
-
 			h << "		//! enum for the final rule\n";
-			h << "		rgEOF = " << (enumIndex++) << '\n';
-
+			h << "		rgEOF // " << (enumIndex++) << '\n';
 			h << "	};\n";
 
 			// rule count
-			h << "	enum\n";
-			h << "	{\n";
-			h << "		//! The total number of rules\n";
-			h << "		ruleCount = " << enumIndex << '\n';
-			h << "	};\n";
+			h << '\n';
+			h << '\n';
+			h << "	//! The total number of rules\n";
+			h << "	constexpr const uint32_t ruleCount = " << enumIndex << ";\n";
 			h << "\n\n\n";
 
 			h << "	//! Convert a rule id into its text representation\n";
-			h << "	YUNI_DECL AnyString ASTRuleToString(enum ASTRule);\n";
-			h << '\n';
+			h << "	YUNI_DECL AnyString ruleToString(enum Rule);\n";
 			h << '\n';
 			h << "	//! Get if a rule is an error\n";
-			h << "	YUNI_DECL bool  ASTRuleIsError(enum ASTRule ruleid);\n";
-			h << '\n';
+			h << "	YUNI_DECL bool ruleIsError(enum Rule ruleid);\n";
 			h << '\n';
 			h << "	//! Get if the rule should be ignored when duplucating an AST (starting from 'tk-' and some special rules)\n";
-			h << "	YUNI_DECL bool ShouldIgnoreASTRuleForDuplication(enum ASTRule);\n";
+			h << "	YUNI_DECL bool shouldIgnoreForDuplication(enum Rule);\n";
 			h << '\n';
 			h << '\n';
 			h << '\n';
-			h << "	enum Error\n";
+			h << "	enum class Error\n";
 			h << "	{\n";
 			h << "		//! No error\n";
-			h << "		errNone,\n";
+			h << "		none,\n";
 			h << "		//! Parse error\n";
-			h << "		errParse,\n";
+			h << "		parse,\n";
 			h << "	};\n";
-			h << "\n\n\n\n\n";
-
+			h << '\n';
+			h << '\n';
+			h << '\n';
+			h << '\n';
+			h << '\n';
 			h << "	class YUNI_DECL Notification final\n";
 			h << "	{\n";
 			h << "	public:\n";
 			h << "		//! Most suitable martptr\n";
-			h << "		typedef Yuni::SmartPtr<Notification> Ptr;\n";
+			h << "		using Ptr = Yuni::SmartPtr<Notification>;\n";
 			h << "		//! Vector of nodes\n";
-			h << "		typedef std::vector<Ptr> Vector;\n";
-			h << '\n';
-			h << "	public:\n";
-			h << "		Notification()\n";
-			h << "			: offset()\n";
-			h << "			, line()\n";
-			h << "		{}\n";
+			h << "		using Vector = std::vector<Ptr>;\n";
 			h << '\n';
 			h << "	public:\n";
 			h << "		//! Start offset\n";
-			h << "		uint offset;\n";
+			h << "		uint32_t offset = 0;\n";
 			h << "		//! Line Index\n";
-			h << "		uint line;\n";
+			h << "		uint32_t line = 0;\n";
 			h << "		//! Filename\n";
 			h << "		YString message;\n";
 			h << "		//! Filename\n";
 			h << "		YString filename;\n";
 			h << '\n';
+			h << "	}; // class Notification\n";
+			h << '\n';
+			h << '\n';
+			h << '\n';
+			h << '\n';
+			h << "	class YUNI_DECL Node;\n";
+			h << '\n';
+			h << '\n';
+			h << "	class YUNI_DECL NodeVector final\n";
+			h << "	{\n";
+			h << "	public:\n";
+			h << "		using T = Node;\n";
+			h << '\n';
+			h << "		struct Iterator final: public std::iterator<std::input_iterator_tag, T>\n";
+			h << "		{\n";
+			h << "			Iterator(T** array, uint32_t index) noexcept :m_array(array), m_index{index} {}\n";
+			h << "			Iterator(const Iterator&) noexcept = default;\n";
+			h << "			Iterator& operator++() noexcept { ++m_index; return *this; }\n";
+			h << "			Iterator operator++(int) noexcept {Iterator tmp(*this); operator++(); return tmp;}\n";
+			h << "			bool operator==(const Iterator& rhs) const noexcept { return rhs.m_index == m_index; };\n";
+			h << "			bool operator!=(const Iterator& rhs) const noexcept { return rhs.m_index != m_index; };\n";
+			h << "			T& operator * () noexcept { return *(m_array[m_index]); }\n";
+			h << '\n';
+			h << "		private:\n";
+			h << "			T** const m_array;\n";
+			h << "			uint32_t m_index = 0;\n";
+			h << "			friend class NodeVector;\n";
+			h << "		};\n";
+			h << '\n';
+			h << "		struct ConstIterator final: public std::iterator<std::input_iterator_tag, T>\n";
+			h << "		{\n";
+			h << "			ConstIterator(T** array, uint32_t index) noexcept :m_array(array), m_index{index} {}\n";
+			h << "			ConstIterator(const ConstIterator&) noexcept = default;\n";
+			h << "			ConstIterator& operator++() noexcept { ++m_index; return *this; }\n";
+			h << "			ConstIterator operator++(int) noexcept {ConstIterator tmp(*this); operator++(); return tmp;}\n";
+			h << "			bool operator==(const ConstIterator& rhs) const noexcept { return rhs.m_index == m_index; };\n";
+			h << "			bool operator!=(const ConstIterator& rhs) const noexcept { return rhs.m_index != m_index; };\n";
+			h << "			const T& operator * () const noexcept { return *(m_array[m_index]); }\n";
+			h << '\n';
+			h << "		private:\n";
+			h << "			T** const m_array;\n";
+			h << "			uint32_t m_index = 0;\n";
+			h << "			friend class NodeVector;\n";
+			h << "		};\n";
+			h << '\n';
+			h << "	public:\n";
+			h << "		NodeVector() = default;\n";
+			h << "		NodeVector(const NodeVector&) = delete;\n";
+			h << "		NodeVector(NodeVector&&) = default;\n";
+			h << "		~NodeVector();\n";
+			h << '\n';
+			h << "		Iterator begin() noexcept;\n";
+			h << "		Iterator end() noexcept;\n";
+			h << '\n';
+			h << "		ConstIterator begin() const noexcept;\n";
+			h << "		ConstIterator end() const noexcept;\n";
+			h << '\n';
+			h << "		ConstIterator cbegin() const noexcept;\n";
+			h << "		ConstIterator cend() const noexcept;\n";
+			h << '\n';
+			h << "		void push_back(T* const element);\n";
+			h << '\n';
+			h << "		template<class U> void push_back(U& element);\n";
+			h << '\n';
+			h << "		void push_front(T* const element);\n";
+			h << '\n';
+			h << "		template<class U> void push_front(U& element);\n";
+			h << '\n';
+			h << "		//! Remove the last element\n";
+			h << "		void pop_back() noexcept;\n";
+			h << '\n';
+			h << "		//! Empty the container\n";
+			h << "		void clear() noexcept;\n";
+			h << '\n';
+			h << "		//! remove an element\n";
+			h << "		void erase(uint32_t index) noexcept;\n";
+			h << '\n';
+			h << "		void erase(const Iterator& it) noexcept;\n";
+			h << '\n';
+			h << "		void erase(const ConstIterator& it) noexcept;\n";
+			h << '\n';
+			h << "		//! Resize the container to N elements\n";
+			h << "		void resize(uint32_t count);\n";
+			h << '\n';
+			h << "		//! Get if the container is empty\n";
+			h << "		bool empty() const noexcept;\n";
+			h << '\n';
+			h << "		//! Get the number of elements\n";
+			h << "		uint32_t size() const noexcept;\n";
+			h << '\n';
+			h << "		//! Get the maximum number of elements before resizing\n";
+			h << "		uint32_t capacity() const noexcept;\n";
+			h << '\n';
+			h << "		void shrink_to_fit() noexcept;\n";
+			h << '\n';
+			h << "		//! Retrieve the last element\n";
+			h << "		T& back();\n";
+			h << "		//! Retrieve the last element (const)\n";
+			h << "		const T& back() const;\n";
+			h << '\n';
+			h << "		//! Retrive the first element\n";
+			h << "		T& front();\n";
+			h << "		//! Retrive the first element (const)\n";
+			h << "		const T& front() const;\n";
+			h << '\n';
+			h << "		//! Retrieve the Nth element\n";
+			h << "		T& operator [] (uint32_t i) noexcept;\n";
+			h << "		//! Retrieve the Nth element (const)\n";
+			h << "		const T& operator [] (uint32_t i) const noexcept;\n";
+			h << "		//! Move operator\n";
+			h << "		NodeVector& operator = (NodeVector&&) = default;\n";
+			h << "		//! Copy operator\n";
+			h << "		NodeVector& operator = (const NodeVector&);\n";
+			h << '\n';
+			h << '\n';
+			h << "	private:\n";
+			h << "		static void deleteElement(T* const ptr) noexcept;\n";
+			h << "		void grow();\n";
+			h << '\n';
+			h << "	private:\n";
+			h << "		static constexpr uint32_t preAllocatedCount = 2;\n";
+			h << "		uint32_t m_size = 0;\n";
+			h << "		uint32_t m_capacity = preAllocatedCount;\n";
+			h << "		T** m_pointer = &(m_innerstorage[0]);\n";
+			h << "		T* m_innerstorage[preAllocatedCount];\n";
+			h << '\n';
+			h << "		friend struct Iterator;\n";
 			h << "	};\n";
 			h << '\n';
 			h << '\n';
@@ -231,23 +312,14 @@ namespace PEG
 			h << "	{\n";
 			h << "	public:\n";
 			h << "		//! Ancestor\n";
-			h << "		typedef Yuni::IIntrusiveSmartPtr<Node, false, Yuni::Policy::SingleThreaded> inherited;\n";
+			h << "		using inherited = Yuni::IIntrusiveSmartPtr<Node, false, Yuni::Policy::SingleThreaded>;\n";
 			h << "		//! Threading policy\n";
-			h << "		typedef inherited::ThreadingPolicy ThreadingPolicy;\n";
+			h << "		using ThreadingPolicy = inherited::ThreadingPolicy;\n";
 			h << "		//! The most suitable smart ptr for the class\n";
-			h << "		typedef inherited::SmartPtrType<Node>::Ptr  Ptr;\n";
-			h << "		//! Vector of nodes\n";
-			h << "		typedef std::vector<Node::Ptr> Vector;\n";
-			h << "		//! Set of symbols\n";
-			h << "		typedef Yuni::Set<Ptr>::Unordered Set;\n";
-			h << '\n';
-			h << "		//! Callback definition for releasing metadata\n";
-			h << "		typedef void (* MetadataReleaseCallback)(void*);\n";
-			h << "		//! Callback definition for cloning metadata\n";
-			h << "		typedef void* (* MetadataCloneCallback)(void*);\n";
+			h << "		using Ptr = inherited::SmartPtrType<Node>::Ptr;\n";
 			h << '\n';
 			h << "		//! Callback definition for export a node\n";
-			h << "		typedef void (* ExportCallback)(const Node& node, YString& tmp);\n";
+			h << "		using ExportCallback = void (*)(const Node& node, YString& tmp);\n";
 			h << '\n';
 			h << '\n';
 			h << "	public:\n";
@@ -261,29 +333,26 @@ namespace PEG
 			h << "		//! Export the tree node into a JSON object\n";
 			h << "		static void ExportToJSON(Yuni::Clob& out, const Node& node);\n";
 			h << "		//! Export the tree node into a JSON object (with callback for additional data)\n";
-			h << "		static void ExportToJSON(Yuni::Clob& out, const Node& node, void (*callback)(Yuni::Dictionary<AnyString, YString>::Unordered&, const Nany::Node&));\n";
-			h << '\n';
-			h << "		#if " << headerGuardID << "_HAS_METADATA != 0\n";
-			h << "		//! Callback for releasing metadata\n";
-			h << "		static MetadataReleaseCallback  metadataRelease;\n";
-			h << "		//! Callback for cloning metadata\n";
-			h << "		static MetadataCloneCallback  metadataClone;\n";
-			h << "		#endif\n";
+			h << "		static void ExportToJSON(Yuni::Clob& out, const Node& node, void (*callback)(Yuni::Dictionary<AnyString, YString>::Unordered&, const Node&));\n";
 			h << '\n';
 			h << '\n';
 			h << "	public:\n";
 			h << "		//! Default constructor\n";
-			h << "		Node();\n";
+			h << "		Node() = default;\n";
 			h << "		//! Default constructor with a pre-defined rule\n";
-			h << "		Node(enum ASTRule);\n";
+			h << "		explicit Node(enum Rule);\n";
+			h << "		//! Default constructor with a pre-defined rule and a given text\n";
+			h << "		Node(enum Rule, const AnyString& text);\n";
 			h << "		//! Copy constructor\n";
-			h << "		Node(const Node& rhs);\n";
+			h << "		Node(const Node& rhs) = delete;\n";
 			h << "		//! Destructor\n";
-			h << "		~Node();\n";
+			h << "		~Node() = default;\n";
 			h << '\n';
 			h << "		void clear();\n";
 			h << '\n';
-			h << "		void swap(Node&);\n";
+			h << "		bool empty() const;\n";
+			h << '\n';
+		//	h << "		void swap(Node&);\n";
 			h << '\n';
 			h << "		//! Iterate through all child nodes\n";
 			h << "		template<class F> bool each(const F& callback);\n";
@@ -291,26 +360,20 @@ namespace PEG
 			h << "		//! Iterate through all child nodes (const)\n";
 			h << "		template<class F> bool each(const F& callback) const;\n";
 			h << '\n';
-			h << "		template<class F> bool each(enum ASTRule rule, const F& callback);\n";
+			h << "		template<class F> bool each(enum Rule rule, const F& callback);\n";
 			h << '\n';
-			h << "		template<class F> bool each(enum ASTRule rule, const F& callback) const;\n";
+			h << "		template<class F> bool each(enum Rule rule, const F& callback) const;\n";
 			h << '\n';
-			h << "		template<class StringT> bool extractFirstChildText(StringT& out, enum ASTRule rule) const;\n";
+			h << "		template<class StringT> bool extractFirstChildText(StringT& out, enum Rule rule) const;\n";
 			h << '\n';
-			h << "		template<class StringT> bool extractChildText(StringT& out, enum ASTRule rule, const AnyString& separator = nullptr) const;\n";
+			h << "		template<class StringT> bool extractChildText(StringT& out, enum Rule rule, const AnyString& separator = nullptr) const;\n";
 			h << '\n';
-			h << "		uint findFirst(enum ASTRule rule) const;\n";
+			h << "		uint32_t findFirst(enum Rule rule) const;\n";
 			h << '\n';
-			h << "		bool exists(enum ASTRule rule) const;\n";
+			h << "		bool exists(enum Rule rule) const;\n";
 			h << '\n';
-			h << "		#ifdef " << headerGuardID << "_HAS_CXX_INITIALIZER_LIST\n";
-			h << "		Node::Ptr  xpath(std::initializer_list<enum ASTRule> path) const;\n";
-			h << "		#endif\n";
-			// h << "		Node::Ptr  xpath(enum ASTRule path) const;\n";
-			h << '\n';
-			h << "		#ifdef " << headerGuardID << "_HAS_CXX_INITIALIZER_LIST\n";
-			h << "		bool xpathExists(std::initializer_list<enum ASTRule> path) const;\n";
-			h << "		#endif\n";
+			h << "		const Node* xpath(std::initializer_list<enum Rule> path) const;\n";
+			// h << "		Node::Ptr  xpath(enum Rule path) const;\n";
 			h << '\n';
 			h << "		Node& operator = (const Node& rhs);\n";
 			h << '\n';
@@ -323,25 +386,26 @@ namespace PEG
 			h << "		const Node& lastChild() const;\n";
 			h << "		Node& lastChild();\n";
 			h << '\n';
+			h << "		Node& append(Rule);\n";
+			h << "		Node& append(Rule, Rule);\n";
+			h << "		Node& append(Rule, Rule, Rule);\n";
 			h << '\n';
 			h << '\n';
 			h << "	public:\n";
 			h << "		//! The rule ID\n";
-			h << "		enum ASTRule rule;\n";
+			h << "		enum Rule rule = rgUnknown;\n";
 			h << "		//! Start offset\n";
-			h << "		uint offset;\n";
+			h << "		uint32_t offset = 0;\n";
 			h << "		//! End offset\n";
-			h << "		uint offsetEnd;\n";
+			h << "		uint32_t offsetEnd = 0;\n";
 			h << "		//! Text associated to the node (if any)\n";
 			h << "		AnyString text;\n";
 			h << '\n';
-			h << "		#if " << headerGuardID << "_HAS_METADATA != 0\n";
-			h << "		//! Metadata\n";
-			h << "		void* metadata;\n";
-			h << "		#endif\n";
+			h << "		//! Parent node, if any\n";
+			h << "		Node* parent = nullptr;\n";
 			h << '\n';
 			h << "		//! Children\n";
-			h << "		Node::Vector children;\n";
+			h << "		NodeVector children;\n";
 			h << "	};\n";
 			h << '\n';
 			h << '\n';
@@ -351,19 +415,22 @@ namespace PEG
 			h << "	class YUNI_DECL Parser final\n";
 			h << "	{\n";
 			h << "	public:\n";
-			h << "		typedef Yuni::Bind<bool (Yuni::Clob& out, const AnyString& uri)>   OnURILoading;\n";
-			h << "		typedef Yuni::Bind<bool (const AnyString& filename, uint line, uint offset, Error, const YString::Vector&)>  OnError;\n";
+			h << "		using OnURILoading = Yuni::Bind<bool (Yuni::Clob& out, const AnyString& uri)>;\n";
+			h << "		using OnError = Yuni::Bind<bool (const AnyString& filename, uint32_t line, uint32_t offset, Error, const YString::Vector&)>;\n";
 			h << '\n';
 			h << "	public:\n";
 			h << "		Parser();\n";
+			h << "		Parser(const Parser&) = delete;\n";
 			h << "		~Parser();\n";
 			h << '\n';
 			h << "		void clear();\n";
 			h << "		bool loadFromFile(const AnyString& filename);\n";
 			h << "		bool load(const AnyString& content);\n";
 			h << "		void translateOffset(uint& column, uint& line, const Node&) const;\n";
-			h << "		void translateOffset(uint& column, uint& line, uint offset) const;\n";
-			h << "		uint translateOffsetToLine(const Node& node) const;\n";
+			h << "		void translateOffset(uint& column, uint& line, uint32_t offset) const;\n";
+			h << "		uint32_t translateOffsetToLine(const Node& node) const;\n";
+			h << '\n';
+			h << "		Parser& operator = (const Parser&) = delete;\n";
 			h << '\n';
 			h << '\n';
 			h << "	public:\n";
@@ -380,7 +447,7 @@ namespace PEG
 			h << '\n';
 			h << '\n';
 			h << "	private:\n";
-			h << "		void* pData;\n";
+			h << "		void* pData = nullptr;\n";
 			h << '\n';
 			h << "	}; // class Parser\n";
 		}
@@ -388,85 +455,189 @@ namespace PEG
 
 		inline void CPPConverter::generateHXX()
 		{
-			hxx << "#ifndef " << headerGuardID << "_HXX__\n";
-			hxx << "# define " << headerGuardID << "_HXX__\n";
-			hxx << '\n';
-			hxx << "\n\n\n";
-
-			hxx << "inline std::ostream& operator << (std::ostream& out, const ";
-			for (uint i = 0; i != namespaces.size(); ++i)
-				hxx << "::" << namespaces[i];
-			hxx << "::Node& node)\n";
-			hxx << "{\n";
-			hxx << "	::Yuni::Clob content;\n";
-			hxx << "	";
-			for (uint i = 0; i != namespaces.size(); ++i)
-				hxx << "::" << namespaces[i];
-			hxx << "::Node::Export(content, node);";
-			hxx << "out << content;\n";
-			hxx << "	return out;\n";
-			hxx << "}\n";
-			hxx << '\n';
-			hxx << '\n';
-			hxx << '\n';
+			hxx << "#pragma once\n";
+			hxx << "\n\n\n\n";
 
 
-			hxx << "inline std::ostream& operator << (std::ostream& out, const ";
-			for (uint i = 0; i != namespaces.size(); ++i)
-				hxx << "::" << namespaces[i];
-			hxx << "::Node::Ptr node)\n";
-			hxx << "{\n";
-			hxx << "	if (!(!node))\n";
-			hxx << "		out << *node;\n";
-			hxx << "	else\n";
-			hxx << "		out << \"<invalid ast node>\";\n";
-			hxx << "	return out;\n";
-			hxx << "}\n";
-			hxx << '\n';
-			hxx << '\n';
-			hxx << '\n';
-
-			for (uint i = 0; i != namespaces.size(); ++i)
+			for (uint32_t i = 0; i != namespaces.size(); ++i)
 				hxx << "namespace " << namespaces[i] << "\n{\n";
-			hxx << "\n\n";
-
-			hxx << "	inline Node::Node()\n";
-			hxx << "		: rule(rgUnknown)\n";
-			hxx << "		, offset()\n";
-			hxx << "		, offsetEnd()\n";
-			hxx << "		#if " << headerGuardID << "_HAS_METADATA != 0\n";
-			hxx << "		, metadata()\n";
-			hxx << "		#endif\n";
-			hxx << "	{}\n";
 			hxx << '\n';
 			hxx << '\n';
-			hxx << "	inline Node::Node(enum ASTRule rule)\n";
-			hxx << "		: rule(rule)\n";
-			hxx << "		, offset()\n";
-			hxx << "		, offsetEnd()\n";
-			hxx << "		#if " << headerGuardID << "_HAS_METADATA != 0\n";
-			hxx << "		, metadata()\n";
-			hxx << "		#endif\n";
-			hxx << "	{}\n";
-			hxx << '\n';
-			hxx << '\n';
-			hxx << "	inline Node::~Node()\n";
+			hxx << "	inline NodeVector::T& NodeVector::back()\n";
 			hxx << "	{\n";
-			hxx << "		#if " << headerGuardID << "_HAS_METADATA != 0\n";
-			hxx << "		if (metadata)\n";
-			hxx << "		{\n";
-			hxx << "			assert(metadataRelease != nullptr and \"invalid callback for releasing metadata\");\n";
-			hxx << "			metadataRelease(metadata);\n";
-			hxx << "		}\n";
-			hxx << "		#endif\n";
+			hxx << "		assert(m_size != 0);\n";
+			hxx << "		return *(m_pointer[m_size - 1]);\n";
 			hxx << "	}\n";
+			hxx << '\n';
+			hxx << "	inline const NodeVector::T& NodeVector::back() const\n";
+			hxx << "	{\n";
+			hxx << "		assert(m_size != 0);\n";
+			hxx << "		return *(m_pointer[m_size - 1]);\n";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << "	inline NodeVector::T& NodeVector::front()\n";
+			hxx << "	{\n";
+			hxx << "		assert(m_size != 0);\n";
+			hxx << "		return *(m_pointer[0]);\n";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << "	inline const NodeVector::T& NodeVector::front() const\n";
+			hxx << "	{\n";
+			hxx << "		assert(m_size != 0);\n";
+			hxx << "		return *(m_pointer[0]);\n";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << "	inline bool NodeVector::empty() const noexcept\n";
+			hxx << "	{\n";
+			hxx << "		return (0 == m_size);\n";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << "	inline uint32_t NodeVector::size() const noexcept\n";
+			hxx << "	{\n";
+			hxx << "		return m_size;\n";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << "	inline uint32_t NodeVector::capacity() const noexcept\n";
+			hxx << "	{\n";
+			hxx << "		return m_capacity;\n";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << "	inline NodeVector::T& NodeVector::operator [] (uint32_t i) noexcept\n";
+			hxx << "	{\n";
+			hxx << "		assert(i < m_size);\n";
+			hxx << "		return *(m_pointer[i]);\n";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << "	inline const NodeVector::T& NodeVector::operator [] (uint32_t i) const noexcept\n";
+			hxx << "	{\n";
+			hxx << "		assert(i < m_size);\n";
+			hxx << "		return *(m_pointer[i]);\n";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << "	inline void NodeVector::erase(const Iterator& it) noexcept\n";
+			hxx << "	{\n";
+			hxx << "		erase(it.m_index);\n";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << "	inline void NodeVector::erase(const ConstIterator& it) noexcept\n";
+			hxx << "	{\n";
+			hxx << "		erase(it.m_index);\n";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << "	template<class U>\n";
+			hxx << "	inline void NodeVector::push_back(U& element)\n";
+			hxx << "	{\n";
+			hxx << "		push_back(T::Ptr::WeakPointer(element));\n";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << "	template<class U>\n";
+			hxx << "	inline void NodeVector::push_front(U& element)\n";
+			hxx << "	{\n";
+			hxx << "		push_front(T::Ptr::WeakPointer(element));\n";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << "	inline NodeVector::Iterator NodeVector::begin() noexcept\n";
+			hxx << "	{\n";
+			hxx << "		return Iterator(m_pointer, 0);\n";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << "	inline NodeVector::Iterator NodeVector::end() noexcept\n";
+			hxx << "	{\n";
+			hxx << "		return Iterator(m_pointer, m_size);\n";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << "	inline NodeVector::ConstIterator NodeVector::begin() const noexcept\n";
+			hxx << "	{\n";
+			hxx << "		return ConstIterator(m_pointer, 0);\n";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << "	inline NodeVector::ConstIterator NodeVector::end() const noexcept\n";
+			hxx << "	{\n";
+			hxx << "		return ConstIterator(m_pointer, m_size);\n";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << "	inline NodeVector::ConstIterator NodeVector::cbegin() const noexcept\n";
+			hxx << "	{\n";
+			hxx << "		return ConstIterator(m_pointer, 0);\n";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << "	inline NodeVector::ConstIterator NodeVector::cend() const noexcept\n";
+			hxx << "	{\n";
+			hxx << "		return ConstIterator(m_pointer, m_size);\n";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << "	inline void NodeVector::deleteElement(T* const element) noexcept\n";
+			hxx << "	{\n";
+			hxx << "		if (element->release())\n";
+			hxx << "			delete element;\n";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << "	inline NodeVector& NodeVector::operator = (const NodeVector& rhs)\n";
+			hxx << "	{\n";
+			hxx << "		clear();\n";
+			hxx << "		for (uint32_t i = 0; i != rhs.m_size; ++i)\n";
+			hxx << "			push_back(rhs.m_pointer[i]);\n";
+			hxx << "		return *this;";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << '\n';
+			hxx << '\n';
+			hxx << '\n';
+			hxx << "	//! References for tokens\n";
+			hxx << "	static constexpr const bool isToken[] =\n";
+			hxx << "	{\n";
+			hxx << "		false, // rgUnknown\n";
+			for (auto& pair: rules)
+			{
+				if (pair.first.startsWith("tk-"))
+					hxx << "		true, // " << pair.first << '\n';
+				else
+					hxx << "		false, // " << pair.first << '\n';
+			}
+			hxx << "	};\n";
+			hxx << "\n\n";
+			hxx << "	inline bool shouldIgnoreForDuplication(enum Rule rule)\n";
+			hxx << "	{\n";
+			hxx << "		//assert(static_cast<uint32_t>(rule) < " << (rules.size() + 1) << ");\n";
+			hxx << "		return isToken[static_cast<uint32_t>(rule)];\n";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << '\n';
+			hxx << "	static constexpr const bool isAttributeError[] =\n";
+			hxx << "	{\n";
+			hxx << "		false, // rgUnknown\n";
+			for (auto& pair: rules)
+			{
+				bool error = pair.first == "error" or pair.first.startsWith("error-");
+				hxx << "		" << (error ? "true" : "false") << ", // " << pair.second.enumID << '\n';
+			}
+			hxx << "		false, // rgEOF\n";
+			hxx << "	};\n";
+			hxx << '\n';
+			hxx << '\n';
+			hxx << "	inline bool ruleIsError(enum Rule ruleid)\n";
+			hxx << "	{\n";
+			hxx << "		// assert((uint) ruleid < (uint) ruleCount);\n";
+			hxx << "		return isAttributeError[static_cast<uint32_t>(ruleid)];\n";
+			hxx << "	}\n";
+
+			hxx << "\n\n\n\n";
+			hxx << "	inline Node::Node(enum Rule rule)\n";
+			hxx << "		: rule(rule)\n";
+			hxx << "	{}\n";
+			hxx << '\n';
+			hxx << '\n';
+			hxx << "	inline Node::Node(enum Rule rule, const AnyString& text)\n";
+			hxx << "		: rule(rule)\n";
+			hxx << "		, text(text)\n";
+			hxx << "	{}\n";
 			hxx << '\n';
 			hxx << '\n';
 			hxx << "	template<class F> inline bool Node::each(const F& callback)\n";
 			hxx << "	{\n";
-			hxx << "		for (unsigned int i = 0; i != (unsigned) children.size(); ++i)\n";
+			hxx << "		for (uint32_t i = 0; i != children.size(); ++i)\n";
 			hxx << "		{\n";
-			hxx << "			if (not callback(*children[i]))\n";
+			hxx << "			if (not callback(children[i]))\n";
 			hxx << "				return false;\n";
 			hxx << "		}\n";
 			hxx << "		return true;\n";
@@ -475,20 +646,20 @@ namespace PEG
 			hxx << '\n';
 			hxx << "	template<class F> inline bool Node::each(const F& callback) const\n";
 			hxx << "	{\n";
-			hxx << "		for (unsigned int i = 0; i != (unsigned) children.size(); ++i)\n";
+			hxx << "		for (uint32_t i = 0; i != children.size(); ++i)\n";
 			hxx << "		{\n";
-			hxx << "			if (not callback(*children[i]))\n";
+			hxx << "			if (not callback(children[i]))\n";
 			hxx << "				return false;\n";
 			hxx << "		}\n";
 			hxx << "		return true;\n";
 			hxx << "	}\n";
 			hxx << '\n';
 			hxx << '\n';
-			hxx << "	template<class F> inline bool Node::each(enum ASTRule rule, const F& callback)\n";
+			hxx << "	template<class F> inline bool Node::each(enum Rule rule, const F& callback)\n";
 			hxx << "	{\n";
-			hxx << "		for (unsigned int i = 0; i != (unsigned) children.size(); ++i)\n";
+			hxx << "		for (uint32_t i = 0; i != children.size(); ++i)\n";
 			hxx << "		{\n";
-			hxx << "			Node& subnode = *children[i];\n";
+			hxx << "			Node& subnode = children[i];\n";
 			hxx << "			if (subnode.rule == rule and not callback(subnode))\n";
 			hxx << "				return false;\n";
 			hxx << "		}\n";
@@ -496,11 +667,11 @@ namespace PEG
 			hxx << "	}\n";
 			hxx << '\n';
 			hxx << '\n';
-			hxx << "	template<class F> inline bool Node::each(enum ASTRule rule, const F& callback) const\n";
+			hxx << "	template<class F> inline bool Node::each(enum Rule rule, const F& callback) const\n";
 			hxx << "	{\n";
-			hxx << "		for (unsigned int i = 0; i != (unsigned) children.size(); ++i)\n";
+			hxx << "		for (uint32_t i = 0; i != children.size(); ++i)\n";
 			hxx << "		{\n";
-			hxx << "			const Node& subnode = *children[i];\n";
+			hxx << "			const Node& subnode = children[i];\n";
 			hxx << "			if (subnode.rule == rule and not callback(subnode))\n";
 			hxx << "				return false;\n";
 			hxx << "		}\n";
@@ -508,11 +679,11 @@ namespace PEG
 			hxx << "	}\n";
 			hxx << '\n';
 			hxx << '\n';
-			hxx << "	template<class StringT> inline bool Node::extractFirstChildText(StringT& out, enum ASTRule rule) const\n";
+			hxx << "	template<class StringT> inline bool Node::extractFirstChildText(StringT& out, enum Rule rule) const\n";
 			hxx << "	{\n";
-			hxx << "		for (unsigned int i = 0; i != (unsigned) children.size(); ++i)\n";
+			hxx << "		for (uint32_t i = 0; i != children.size(); ++i)\n";
 			hxx << "		{\n";
-			hxx << "			const Node& subnode = *children[i];\n";
+			hxx << "			const Node& subnode = children[i];\n";
 			hxx << "			if (subnode.rule == rule)\n";
 			hxx << "			{\n";
 			hxx << "				out += subnode.text;\n";
@@ -523,15 +694,15 @@ namespace PEG
 			hxx << "	}\n";
 			hxx << '\n';
 			hxx << '\n';
-			hxx << "	template<class StringT> inline bool Node::extractChildText(StringT& out, enum ASTRule rule, const AnyString& separator) const\n";
+			hxx << "	template<class StringT> inline bool Node::extractChildText(StringT& out, enum Rule rule, const AnyString& separator) const\n";
 			hxx << "	{\n";
 			hxx << "		bool somethingFound = false;\n";
 			hxx << '\n';
 			hxx << "		if (separator.empty())\n";
 			hxx << "		{\n";
-			hxx << "			for (unsigned int i = 0; i != (unsigned) children.size(); ++i)\n";
+			hxx << "			for (uint32_t i = 0; i != children.size(); ++i)\n";
 			hxx << "			{\n";
-			hxx << "				const Node& subnode = *children[i];\n";
+			hxx << "				const Node& subnode = children[i];\n";
 			hxx << "				if (subnode.rule == rule)\n";
 			hxx << "				{\n";
 			hxx << "					out += subnode.text;\n";
@@ -541,9 +712,9 @@ namespace PEG
 			hxx << "		}\n";
 			hxx << "		else\n";
 			hxx << "		{\n";
-			hxx << "			for (unsigned int i = 0; i != (unsigned) children.size(); ++i)\n";
+			hxx << "			for (uint32_t i = 0; i != children.size(); ++i)\n";
 			hxx << "			{\n";
-			hxx << "				const Node& subnode = *children[i];\n";
+			hxx << "				const Node& subnode = children[i];\n";
 			hxx << "				if (subnode.rule == rule)\n";
 			hxx << "				{\n";
 			hxx << "					if (not out.empty())\n";
@@ -557,22 +728,28 @@ namespace PEG
 			hxx << "	}\n";
 			hxx << '\n';
 			hxx << '\n';
-			hxx << "	inline uint Node::findFirst(enum ASTRule rule) const\n";
+			hxx << "	inline uint32_t Node::findFirst(enum Rule rule) const\n";
 			hxx << "	{\n";
-			hxx << "		for (unsigned int i = 0; i != (unsigned) children.size(); ++i)\n";
+			hxx << "		for (uint32_t i = 0; i != children.size(); ++i)\n";
 			hxx << "		{\n";
-			hxx << "			if (children[i]->rule == rule)\n";
+			hxx << "			if (children[i].rule == rule)\n";
 			hxx << "				return i;\n";
 			hxx << "		}\n";
 			hxx << "		return (uint)-1;\n";
 			hxx << "	}\n";
 			hxx << '\n';
 			hxx << '\n';
-			hxx << "	inline bool Node::exists(enum ASTRule rule) const\n";
+			hxx << "	inline bool Node::empty() const\n";
 			hxx << "	{\n";
-			hxx << "		for (unsigned int i = 0; i != (unsigned) children.size(); ++i)\n";
+			hxx << "		return children.empty();\n";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << '\n';
+			hxx << "	inline bool Node::exists(enum Rule rule) const\n";
+			hxx << "	{\n";
+			hxx << "		for (uint32_t i = 0; i != children.size(); ++i)\n";
 			hxx << "		{\n";
-			hxx << "			if (children[i]->rule == rule)\n";
+			hxx << "			if (children[i].rule == rule)\n";
 			hxx << "				return true;\n";
 			hxx << "		}\n";
 			hxx << "		return false;\n";
@@ -581,53 +758,48 @@ namespace PEG
 			hxx << '\n';
 			hxx << "	inline const Node& Node::firstChild() const\n";
 			hxx << "	{\n";
-			hxx << "		assert(not children.empty());\n";
-			hxx << "		return *(children[0]);\n";
+			hxx << "		return children.front();\n";
 			hxx << "	}\n";
 			hxx << '\n';
 			hxx << '\n';
 			hxx << "	inline Node& Node::firstChild()\n";
 			hxx << "	{\n";
-			hxx << "		assert(not children.empty());\n";
-			hxx << "		return *(children[0]);\n";
+			hxx << "		return children.front();\n";
 			hxx << "	}\n";
 			hxx << '\n';
 			hxx << '\n';
 			hxx << "	inline const Node& Node::lastChild() const\n";
 			hxx << "	{\n";
-			hxx << "		assert(not children.empty());\n";
-			hxx << "		return *(children[children.size() - 1]);\n";
+			hxx << "		return children.back();\n";
 			hxx << "	}\n";
 			hxx << '\n';
 			hxx << '\n';
 			hxx << "	inline Node& Node::lastChild()\n";
 			hxx << "	{\n";
-			hxx << "		assert(not children.empty());\n";
-			hxx << "		return *(children[children.size() - 1]);\n";
+			hxx << "		return children.back();\n";
 			hxx << "	}\n";
 			hxx << '\n';
 			hxx << '\n';
-			hxx << "	#ifdef " << headerGuardID << "_HAS_CXX_INITIALIZER_LIST\n";
-			hxx << "	inline Node::Ptr  Node::xpath(std::initializer_list<enum ASTRule> path) const\n";
+			hxx << "	inline const Node* Node::xpath(std::initializer_list<enum Rule> path) const\n";
 			hxx << "	{\n";
 			hxx << "		if (path.size() > 0)\n";
 			hxx << "		{\n";
 			hxx << "			auto it = path.begin();\n";
-			hxx << "			for (unsigned int i = 0; i != (unsigned) children.size(); ++i)\n";
+			hxx << "			for (auto& child: children)\n";
 			hxx << "			{\n";
-			hxx << "				if (children[i]->rule == *it)\n";
+			hxx << "				if (child.rule == *it)\n";
 			hxx << "				{\n";
-			hxx << "					Node::Ptr result = children[i];\n";
+			hxx << "					const Node* result = &child;\n";
 			hxx << "					++it;\n";
 			hxx << "					for (; it != path.end(); ++it)\n";
 			hxx << "					{\n";
 			hxx << "						bool found = false;\n";
 			hxx << "						auto& subnode = *result;\n";
-			hxx << "						for (unsigned int j = 0; j != (unsigned) subnode.children.size(); ++j)\n";
+			hxx << "						for (uint32_t j = 0; j != subnode.children.size(); ++j)\n";
 			hxx << "						{\n";
-			hxx << "							if (subnode.children[j]->rule == *it)\n";
+			hxx << "							if (subnode.children[j].rule == *it)\n";
 			hxx << "							{\n";
-			hxx << "								result = subnode.children[j];\n";
+			hxx << "								result = &(subnode.children[j]);\n";
 			hxx << "								found = true;\n";
 			hxx << "								break;\n";
 			hxx << "							}\n";
@@ -641,12 +813,29 @@ namespace PEG
 			hxx << "		}\n";
 			hxx << "		return nullptr;\n";
 			hxx << "	}\n";
-			hxx << "	#endif\n";
 			hxx << '\n';
 			hxx << '\n';
-			// hxx << "	inline Node::Ptr  Node::xpath(enum ASTRule path) const\n";
+			hxx << "	inline Node& Node::append(Rule r1)\n";
+			hxx << "	{\n";
+			hxx << "		Node* node = new Node{r1};\n";
+			hxx << "		children.push_back(node);\n";
+			hxx << "		return *node;\n";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << "	inline Node& Node::append(Rule r1, Rule r2)\n";
+			hxx << "	{\n";
+			hxx << "		return append(r1).append(r2);\n";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << "	inline Node& Node::append(Rule r1, Rule r2, Rule r3)";
+			hxx << "	{\n";
+			hxx << "		return append(r1).append(r2).append(r3);\n";
+			hxx << "	}\n";
+			hxx << '\n';
+			hxx << '\n';
+			// hxx << "	inline Node::Ptr  Node::xpath(enum Rule path) const\n";
 			// hxx << "	{\n";
-			// hxx << "		for (unsigned int i = 0; i != (unsigned) children.size(); ++i)\n";
+			// hxx << "		for (uint32_t i = 0; i != (uint) children.size(); ++i)\n";
 			// hxx << "		{\n";
 			// hxx << "			if (children[i]->rule == path)\n";
 			// hxx << "				return children[i];\n";
@@ -655,12 +844,6 @@ namespace PEG
 			// hxx << "	}\n";
 			// hxx << '\n';
 			// hxx << '\n';
-			hxx << "	#ifdef " << headerGuardID << "_HAS_CXX_INITIALIZER_LIST\n";
-			hxx << "	inline bool  Node::xpathExists(std::initializer_list<enum ASTRule> path) const\n";
-			hxx << "	{\n";
-			hxx << "		return !(!xpathExists(std::move(path)));\n";
-			hxx << "	}\n";
-			hxx << "	#endif\n";
 			hxx << '\n';
 			hxx << '\n';
 		}
@@ -681,7 +864,7 @@ namespace PEG
 				// skip the first AND block, which is useless actually
 				if (node.rule.type == Node::asAND)
 				{
-					for (uint i = 0; i != (uint) node.children.size(); ++i)
+					for (uint32_t i = 0; i != (uint) node.children.size(); ++i)
 						node.children[i].exportCPP(body, rules, helpers, datatext, 2, true, sp);
 				}
 				else
@@ -692,12 +875,12 @@ namespace PEG
 
 				if (not datatext.empty())
 				{
-					for (uint i = 0; i != (uint) datatext.size(); ++i)
+					for (uint32_t i = 0; i != (uint) datatext.size(); ++i)
 						cpp << '	' << datatext[i] << '\n';
 					cpp << "\n\n\n";
 				}
 
-				for (uint i = 0; i != (uint) helpers.size(); ++i)
+				for (uint32_t i = 0; i != (uint) helpers.size(); ++i)
 				{
 					if (not helpers[i].empty())
 					{
@@ -707,14 +890,14 @@ namespace PEG
 							cpp << "\n\n";
 						}
 						// extract forward declaration
-						uint linefeed = helpers[i].find('\n');
+						uint32_t linefeed = helpers[i].find('\n');
 						if (linefeed < helpers[i].size())
 							cpp << AnyString(helpers[i], 0, linefeed) << ";\n";
 					}
 				}
 
 				foundHelper = false;
-				for (uint i = 0; i != (uint) helpers.size(); ++i)
+				for (uint32_t i = 0; i != (uint) helpers.size(); ++i)
 				{
 					if (not helpers[i].empty())
 					{
@@ -728,9 +911,9 @@ namespace PEG
 				}
 			}
 
-			cpp << "	//! ASTRule " << name << '\n';
+			cpp << "	//! Rule " << name << '\n';
 			cpp << "	";
-			cpp << ((node.enumID != "rgStart") ? "static inline " : "static ");
+			cpp << ((node.enumID != "Rule::start") ? "static inline " : "static ");
 
 			cpp << "bool yy" << node.enumID << "(Datasource& ctx)\n";
 			cpp << "	{\n";
@@ -741,7 +924,7 @@ namespace PEG
 			cpp << "\");\n";
 
 			if (not node.attributes.inlined)
-				cpp << "		uint _ruleOffset = ctx.enterRule(" << node.enumID << ");\n";
+				cpp << "		uint32_t _ruleOffset = ctx.enterRule(" << node.enumID << ");\n";
 			cpp << '\n';
 			cpp << body;
 			cpp << '\n';
@@ -766,17 +949,50 @@ namespace PEG
 			cpp << "#include <yuni/core/noncopyable.h>\n";
 			cpp << "#include <yuni/datetime/timestamp.h>\n";
 			cpp << "#include <yuni/core/system/console/console.h>\n";
+			cpp << "#include <iostream>\n";
 			cpp << '\n';
 			cpp << "using namespace Yuni;\n";
-			cpp << "\n\n";
+			cpp << "\n\n\n\n";
 
-			for (uint i = 0; i != namespaces.size(); ++i)
+			cpp << "std::ostream& operator << (std::ostream& out, const ";
+			for (uint32_t i = 0; i != namespaces.size(); ++i)
+				cpp << "::" << namespaces[i];
+			cpp << "::Node& node)\n";
+			cpp << "{\n";
+			cpp << "	Clob content;\n";
+			cpp << "	";
+			for (uint32_t i = 0; i != namespaces.size(); ++i)
+				cpp << "::" << namespaces[i];
+			cpp << "::Node::Export(content, node);";
+			cpp << "out << content;\n";
+			cpp << "	return out;\n";
+			cpp << "}\n";
+			cpp << '\n';
+			cpp << '\n';
+			cpp << "std::ostream& operator << (std::ostream& out, const ";
+			for (uint32_t i = 0; i != namespaces.size(); ++i)
+				cpp << "::" << namespaces[i];
+			cpp << "::Node::Ptr node)\n";
+			cpp << "{\n";
+			cpp << "	if (!!node)\n";
+			cpp << "		out << (*node);\n";
+			cpp << "	else\n";
+			cpp << "		out << \"<invalid ast node>\";\n";
+			cpp << "	return out;\n";
+			cpp << "}\n";
+			cpp << '\n';
+			cpp << '\n';
+			cpp << '\n';
+			cpp << '\n';
+
+
+			for (uint32_t i = 0; i != namespaces.size(); ++i)
 				cpp << "namespace " << namespaces[i] << "\n{\n";
 
 			cpp << "namespace // anonymous\n{\n";
 			cpp << '\n';
 			cpp << '\n';
-			cpp << "	static const bool _attrAttributeCapture[] =\n";
+			cpp << "	static constexpr const bool _attrAttributeCapture[] =\n";
 			cpp << "	{\n";
 			cpp << "		false, // rgUnknown\n";
 			for (Node::Map::const_iterator i = rules.begin(); i != end; ++i)
@@ -785,7 +1001,7 @@ namespace PEG
 			cpp << "	};\n";
 			cpp << '\n';
 			cpp << '\n';
-			cpp << "	static bool  RuleAttributeCapture(enum ASTRule ruleid)\n";
+			cpp << "	static bool ruleAttributeCapture(enum Rule ruleid)\n";
 			cpp << "	{\n";
 			cpp << "		assert((uint) ruleid < (uint) ruleCount);\n";
 			cpp << "		return _attrAttributeCapture[(uint) ruleid];\n";
@@ -793,27 +1009,12 @@ namespace PEG
 			cpp << '\n';
 			cpp << '\n';
 			cpp << '\n';
-			cpp << "	static const bool _attrAttributeError[] =\n";
-			cpp << "	{\n";
-			cpp << "		false, // rgUnknown\n";
-			for (Node::Map::const_iterator i = rules.begin(); i != end; ++i)
-			{
-				bool error = i->first == "error" or i->first.startsWith("error-");
-				cpp << "		" << (error ? "true" : "false") << ", // " << i->second.enumID << '\n';
-			}
-			cpp << "		false, // rgEOF\n";
-			cpp << "	};\n";
-			cpp << '\n';
-			cpp << '\n';
-			cpp << "	static inline bool  RuleAttributeError(enum ASTRule ruleid)\n";
-			cpp << "	{\n";
-			cpp << "		assert((uint) ruleid < (uint) ruleCount);\n";
-			cpp << "		return _attrAttributeError[(uint) ruleid];\n";
-			cpp << "	}\n";
 			cpp << '\n';
 			cpp << '\n';
 			cpp << '\n';
-			cpp << "	static const bool _attrAttributeImportant[] = {\n";
+
+
+			cpp << "	static constexpr const bool _attrAttributeImportant[] = {\n";
 			cpp << "		false, // rgUnknown\n";
 			for (Node::Map::const_iterator i = rules.begin(); i != end; ++i)
 				cpp << "		" << (i->second.attributes.important ? "true" : "false") << ", // " << i->second.enumID << '\n';
@@ -821,7 +1022,7 @@ namespace PEG
 			cpp << "	};\n";
 			cpp << '\n';
 			cpp << '\n';
-			cpp << "	static inline bool  RuleAttributeImportant(enum ASTRule ruleid)\n";
+			cpp << "	static inline bool ruleAttributeImportant(enum Rule ruleid)\n";
 			cpp << "	{\n";
 			cpp << "		assert((uint) ruleid < (uint) ruleCount);\n";
 			cpp << "		return _attrAttributeImportant[(uint) ruleid];\n";
@@ -853,7 +1054,7 @@ namespace PEG
 			cpp << "	};\n";
 			cpp << '\n';
 			cpp << '\n';
-			cpp << "	static AnyString  RuleAttributeSimpleTextCapture(enum ASTRule ruleid)\n";
+			cpp << "	static AnyString ruleAttributeSimpleTextCapture(enum Rule ruleid)\n";
 			cpp << "	{\n";
 			cpp << "		assert((uint) ruleid < (uint) ruleCount);\n";
 			cpp << "		return _attrAttributeSimpleTextCapture[(uint) ruleid];\n";
@@ -872,7 +1073,7 @@ namespace PEG
 
 			// generate all rules
 			{
-				uint sp = 0;
+				uint32_t sp = 0;
 				for (Node::Map::const_iterator i = rules.begin(); i != end; ++i)
 					GenerateFunctionForEachRule(cpp, sp, rules, i->first, i->second);
 			}
@@ -888,31 +1089,160 @@ namespace PEG
 			cpp << '\n';
 			cpp << '\n';
 			cpp << '\n';
-			cpp << "	bool ShouldIgnoreASTRuleForDuplication(enum ASTRule rule)\n";
+
+
+			cpp << "	NodeVector::~NodeVector()\n";
 			cpp << "	{\n";
-			cpp << "		static const bool hints[] = {\n";
-			cpp << "			false, // rgUnknown\n";
-			for (Node::Map::const_iterator i = rules.begin(); i != end; ++i)
-			{
-				if (i->first.startsWith("tk-"))
-					cpp << "			true, // " << i->first << '\n';
-				else
-					cpp << "			false, // " << i->first << '\n';
-			}
-			cpp << "		};";
-			cpp << "		return hints[(uint) rule];\n";
+			cpp << "		uint32_t size = m_size;\n";
+			cpp << "		for (uint32_t i = 0; i != size; ++i)\n";
+			cpp << "			deleteElement(m_pointer[i]);\n";
+			cpp << "		if (m_capacity != preAllocatedCount)\n";
+			cpp << "			free(m_pointer);\n";
+			cpp << "	}\n";
+			cpp << '\n';
+			cpp << "	void NodeVector::shrink_to_fit() noexcept\n";
+			cpp << "	{\n";
+			cpp << "		if (m_capacity != preAllocatedCount)\n";
+			cpp << "		{\n";
+			cpp << "			if (m_size == 0)\n";
+			cpp << "			{\n";
+			cpp << "				free(m_pointer);\n";
+			cpp << "				m_pointer = &(m_innerstorage[0]);\n";
+			cpp << "				m_capacity = preAllocatedCount;\n";
+			cpp << "			}\n";
+			cpp << "		}\n";
+			cpp << "	}\n";
+			cpp << '\n';
+			cpp << '\n';
+			cpp << "	void NodeVector::push_front(NodeVector::T* const element)\n";
+			cpp << "	{\n";
+			cpp << "		assert(element != nullptr);\n";
+			cpp << "		uint32_t size = m_size;\n";
+			cpp << "		if (size == 0)\n";
+			cpp << "			push_back(element);\n";
+			cpp << '\n';
+			cpp << "		uint32_t newsize = size + 1;\n";
+			cpp << "		if (not (newsize < m_capacity))\n";
+			cpp << "			grow();\n";
+			cpp << "		uint32_t i = size;\n";
+			cpp << "		while (i-- > 0)\n";
+			cpp << "			m_pointer[i + 1] = m_pointer[i];\n";
+			cpp << "		m_size = newsize;\n";
+			cpp << "		element->addRef();\n";
+			cpp << "		m_pointer[0] = element;\n";
+			cpp << "	}\n";
+			cpp << '\n';
+			cpp << '\n';
+			cpp << "	void NodeVector::resize(uint32_t count)\n";
+			cpp << "	{\n";
+			cpp << "		uint32_t size = m_size;\n";
+			cpp << "		if (count != size)\n";
+			cpp << "		{\n";
+			cpp << "			if (count > size)\n";
+			cpp << "			{\n";
+			cpp << "				for (uint32_t i = size; i != count; ++i)\n";
+			cpp << "					push_back(new T);\n";
+			cpp << "			}\n";
+			cpp << "			else\n";
+			cpp << "			{\n";
+			cpp << "				for (uint32_t i = count; i != size; ++i)\n";
+			cpp << "					deleteElement(m_pointer[i]);\n";
+			cpp << "			}\n";
+			cpp << "			m_size = count;\n";
+			cpp << "		}\n";
+			cpp << "	}\n";
+			cpp << '\n';
+			cpp << '\n';
+			cpp << "	void NodeVector::erase(uint32_t index) noexcept\n";
+			cpp << "	{\n";
+			cpp << "		uint32_t size = m_size;\n";
+			cpp << "		if (index < size)\n";
+			cpp << "		{\n";
+			cpp << "			deleteElement(m_pointer[index]);\n";
+			cpp << "			for (uint32_t i = index + 1; i < size; ++i)\n";
+			cpp << "				m_pointer[i - 1] = m_pointer[i];\n";
+			cpp << "			m_size = --size;\n";
+			cpp << "		}\n";
+			cpp << "	}\n";
+			cpp << '\n';
+			cpp << '\n';
+			cpp << "	void NodeVector::clear() noexcept\n";
+			cpp << "	{\n";
+			cpp << "		uint32_t size = m_size;\n";
+			cpp << "		if (size)\n";
+			cpp << "		{\n";
+			cpp << "			for (uint32_t i = 0; i != size; ++i)\n";
+			cpp << "				deleteElement(m_pointer[i]);\n";
+			cpp << "			m_size = 0;\n";
+			cpp << "		}\n";
+			cpp << "	}\n";
+			cpp << '\n';
+			cpp << '\n';
+			cpp << "	void NodeVector::pop_back() noexcept\n";
+			cpp << "	{\n";
+			cpp << "		uint32_t size = m_size;\n";
+			cpp << "		if (size != 0)\n";
+			cpp << "		{\n";
+			cpp << "			--size;\n";
+			cpp << "			deleteElement(m_pointer[size]);\n";
+			cpp << "			m_size = size;\n";
+			cpp << "		}\n";
+			cpp << "	}\n";
+			cpp << '\n';
+			cpp << '\n';
+			cpp << "	void NodeVector::push_back(NodeVector::T* const element)\n";
+			cpp << "	{\n";
+			cpp << "		assert(element != nullptr);\n";
+			cpp << "		uint32_t oldsize = m_size;\n";
+			cpp << "		uint32_t newsize = oldsize + 1;\n";
+			cpp << "		if (not (newsize < m_capacity))\n";
+			cpp << "			grow();\n";
+			cpp << "		m_size = newsize;\n";
+			cpp << "		element->addRef();\n";
+			cpp << "		m_pointer[oldsize] = element;\n";
+			cpp << "	}\n";
+			cpp << '\n';
+			cpp << '\n';
+			cpp << "	void NodeVector::grow()\n";
+			cpp << "	{\n";
+			cpp << "		uint32_t newcapacity;\n";
+			cpp << "		T** newptr;\n";
+			cpp << "		if (m_capacity == preAllocatedCount)\n";
+			cpp << "		{\n";
+			cpp << "			newcapacity = 8;\n";
+			cpp << "			newptr = (T**) malloc(sizeof(T*) * newcapacity);\n";
+			cpp << "			if (!newptr)\n";
+			cpp << "			{\n";
+			cpp << "				#if __cpp_exceptions >= 199711\n";
+			cpp << "				throw std::bad_alloc();\n";
+			cpp << "				#else\n";
+			cpp << "				abort();\n";
+			cpp << "				#endif\n";
+			cpp << "			}\n";
+			cpp << "			newptr[0] = m_innerstorage[0];\n";
+			cpp << "			newptr[1] = m_innerstorage[1];\n";
+			cpp << "		}\n";
+			cpp << "		else\n";
+			cpp << "		{\n";
+			cpp << "			newcapacity = m_capacity + 8;\n";
+			cpp << "			newptr = (T**) realloc(m_pointer, sizeof(T*) * newcapacity);\n";
+			cpp << "			if (!newptr)\n";
+			cpp << "			{\n";
+			cpp << "				#if __cpp_exceptions >= 199711\n";
+			cpp << "				throw std::bad_alloc();\n";
+			cpp << "				#else\n";
+			cpp << "				abort();\n";
+			cpp << "				#endif\n";
+			cpp << "			}\n";
+			cpp << "		}\n";
+			cpp << "		m_capacity = newcapacity;\n";
+			cpp << "		m_pointer = newptr;\n";
 			cpp << "	}\n";
 			cpp << '\n';
 			cpp << '\n';
 			cpp << '\n';
-			cpp << "	bool  ASTRuleIsError(enum ASTRule ruleid)\n";
-			cpp << "	{\n";
-			cpp << "		return RuleAttributeError(ruleid);\n";
-			cpp << "	}\n";
 			cpp << '\n';
-			cpp << '\n';
-			cpp << '\n';
-			cpp << "	AnyString ASTRuleToString(enum ASTRule ruleid)\n";
+			cpp << "	AnyString ruleToString(Rule ruleid)\n";
 			cpp << "	{\n";
 			cpp << "		switch (ruleid)\n";
 			cpp << "		{\n";
@@ -933,7 +1263,6 @@ namespace PEG
 			cpp << '\n';
 			cpp << '\n';
 			cpp << "	Parser::Parser()\n";
-			cpp << "		: pData()\n";
 			cpp << "	{\n";
 			cpp << "		onURILoading.bind(& StandardURILoaderHandler);\n";
 			cpp << "	}\n";
@@ -961,9 +1290,20 @@ namespace PEG
 			cpp << "			pData = new Datasource(notifications);\n";
 			cpp << '\n';
 			cpp << "		Datasource& ctx = *((Datasource*) pData);\n";
-			cpp << "		ctx.open(filename);\n";
-			cpp << "		DATASOURCE_PARSE(ctx);\n";
-			cpp << "		return ctx.success;\n";
+			cpp << "		switch (ctx.open(filename))\n";
+			cpp << "		{\n";
+			cpp << "			case Datasource::OpenFlag::opened: {\n";
+			cpp << "				DATASOURCE_PARSE(ctx);\n";
+			cpp << "				return ctx.success;\n";
+			cpp << "			}\n";
+			cpp << "			case Datasource::OpenFlag::ignore: {\n";
+			cpp << "				return true;";
+			cpp << "			}\n";
+			cpp << "			case Datasource::OpenFlag::error: {\n";
+			cpp << "				return false;";
+			cpp << "			}\n";
+			cpp << "		}\n";
+			cpp << "		return false;\n";
 			cpp << "	}\n";
 			cpp << '\n';
 			cpp << '\n';
@@ -981,7 +1321,6 @@ namespace PEG
 			cpp << '\n';
 			cpp << "	void Parser::translateOffset(uint& column, uint& line, const Node& node) const\n";
 			cpp << "	{\n";
-			cpp << "		assert(&node and \"invalid pointer to node\");\n";
 			cpp << "		column = 0;\n";
 			cpp << "		line = 0;\n";
 			cpp << "		if (YUNI_LIKELY(pData))\n";
@@ -992,7 +1331,7 @@ namespace PEG
 			cpp << "	}\n";
 			cpp << '\n';
 			cpp << '\n';
-			cpp << "	void Parser::translateOffset(uint& column, uint& line, uint offset) const\n";
+			cpp << "	void Parser::translateOffset(uint& column, uint& line, uint32_t offset) const\n";
 			cpp << "	{\n";
 			cpp << "		column = 0;\n";
 			cpp << "		line = 0;\n";
@@ -1004,11 +1343,10 @@ namespace PEG
 			cpp << "	}\n";
 			cpp << '\n';
 			cpp << '\n';
-			cpp << "	uint Parser::translateOffsetToLine(const Node& node) const\n";
+			cpp << "	uint32_t Parser::translateOffsetToLine(const Node& node) const\n";
 			cpp << "	{\n";
-			cpp << "		assert(&node and \"invalid pointer to node\");\n";
-			cpp << "		uint column;\n";
-			cpp << "		uint line;\n";
+			cpp << "		uint32_t column;\n";
+			cpp << "		uint32_t line;\n";
 			cpp << "		translateOffset(column, line, node);\n";
 			cpp << "		return line;\n";
 			cpp << "	}\n";
@@ -1025,17 +1363,8 @@ namespace PEG
 			cpp << '\n';
 			cpp << '\n';
 			cpp << '\n';
-			cpp << "	#if " << headerGuardID << "_HAS_METADATA != 0\n";
-			cpp << "	/* static */ Node::MetadataReleaseCallback  Node::metadataRelease = nullptr;\n";
-			cpp << "	/* static */ Node::MetadataCloneCallback    Node::metadataClone   = nullptr;\n";
-			cpp << "	#endif\n";
-			cpp << '\n';
-			cpp << '\n';
-			cpp << '\n';
 			cpp << "	void Node::ExportToHTML(Clob& out, const Node& node)\n";
 			cpp << "	{\n";
-			cpp << "		assert(&node and \"invalid reference to node\");\n";
-			cpp << '\n';
 			cpp << "		String tmp;\n";
 			cpp << "		String indent;\n";
 			cpp << "		InternalNodeExportHTML(out, node, indent, tmp);\n";
@@ -1044,8 +1373,6 @@ namespace PEG
 			cpp << '\n';
 			cpp << "	void Node::Export(Clob& out, const Node& node, bool color, ExportCallback callback)\n";
 			cpp << "	{\n";
-			cpp << "		assert(&node and \"invalid reference to node\");\n";
-			cpp << '\n';
 			cpp << "		String tmp;\n";
 			cpp << "		String indent;\n";
 			cpp << "		if (not color)\n";
@@ -1055,7 +1382,7 @@ namespace PEG
 			cpp << "	}\n";
 			cpp << '\n';
 			cpp << '\n';
-			cpp << "	void Node::ExportToJSON(Yuni::Clob& out, const Node& node, void (*callback)(Yuni::Dictionary<AnyString, YString>::Unordered&, const Nany::Node&))\n";
+			cpp << "	void Node::ExportToJSON(Yuni::Clob& out, const Node& node, void (*callback)(Yuni::Dictionary<AnyString, YString>::Unordered&, const Node&))\n";
 			cpp << "	{\n";
 			cpp << "		String tmp;\n";
 			cpp << "		String indent;\n";
@@ -1078,34 +1405,22 @@ namespace PEG
 			cpp << "	}\n";
 			cpp << '\n';
 			cpp << '\n';
-			cpp << "	Node::Node(const Node& rhs)\n";
+		/*	cpp << "	Node::Node(const Node& rhs)\n";
 			cpp << "		: inherited()\n";
 			cpp << "		, rule(rhs.rule)\n";
 			cpp << "		, offset(rhs.offset)\n";
 			cpp << "		, offsetEnd(rhs.offsetEnd)\n";
 			cpp << "		, text(rhs.text)\n";
 			cpp << "	{\n";
-			cpp << "		#if " << headerGuardID << "_HAS_METADATA != 0\n";
-			cpp << "		// cloning metadata\n";
-			cpp << "		if (rhs.metadata)\n";
-			cpp << "		{\n";
-			cpp << "			assert(metadataClone != nullptr and \"invalid callback for cloning metadata\");\n";
-			cpp << "			metadata = metadataClone(rhs.metadata);\n";
-			cpp << "		}\n";
-			cpp << "		else\n";
-			cpp << "			metadata = nullptr;\n";
-			cpp << "		#endif\n";
-			cpp << '\n';
 			cpp << "		// cloning children\n";
 			cpp << "		if (not rhs.children.empty())\n";
 			cpp << "		{\n";
-			cpp << "			children.resize(rhs.children.size());\n";
-			cpp << "			for (unsigned int i = 0; i != (unsigned) rhs.children.size(); ++i)\n";
+			cpp << "			for (uint32_t i = 0; i != (uint) rhs.children.size(); ++i)\n";
 			cpp << "				children[i] = new Node(*rhs.children[i]);\n";
 			cpp << "		}\n";
 			cpp << "	}\n";
 			cpp << '\n';
-			cpp << '\n';
+			cpp << '\n';*/
 			cpp << "	Node& Node::operator = (const Node& rhs)\n";
 			cpp << "	{\n";
 			cpp << "		rule = rhs.rule;\n";
@@ -1113,24 +1428,6 @@ namespace PEG
 			cpp << "		offsetEnd = rhs.offsetEnd;\n";
 			cpp << "		text = rhs.text;\n";
 			cpp << "		children = rhs.children;\n";
-			cpp << '\n';
-			cpp << "		#if " << headerGuardID << "_HAS_METADATA != 0\n";
-			cpp << "		// copying metadata\n";
-			cpp << "		if (metadata)\n";
-			cpp << "		{\n";
-			cpp << "			assert(metadataRelease != nullptr and \"invalid callback for releasing metadata\");\n";
-			cpp << "			metadataRelease(metadata);\n";
-			cpp << "		}\n";
-			cpp << "		// cloning metadata\n";
-			cpp << "		if (rhs.metadata)\n";
-			cpp << "		{\n";
-			cpp << "			assert(metadataClone != nullptr and \"invalid callback for cloning metadata\");\n";
-			cpp << "			metadata = metadataClone(rhs.metadata);\n";
-			cpp << "		}\n";
-			cpp << "		else\n";
-			cpp << "			metadata = nullptr;\n";
-			cpp << "		#endif\n";
-			cpp << '\n';
 			cpp << "		return *this;\n";
 			cpp << "	}\n";
 			cpp << '\n';
@@ -1144,8 +1441,8 @@ namespace PEG
 			cpp << "			out += text;\n";
 			cpp << "			out.trimRight();\n";
 			cpp << "		}\n";
-			cpp << "		for (uint i = 0; i != (uint) children.size(); ++i)\n";
-			cpp << "			children[i]->toText(out);\n";
+			cpp << "		for (auto& child: children)\n";
+			cpp << "			child.toText(out);\n";
 			cpp << "	}\n";
 			cpp << '\n';
 			cpp << '\n';
@@ -1156,29 +1453,17 @@ namespace PEG
 			cpp << "		offset = 0;\n";
 			cpp << "		offsetEnd = 0;\n";
 			cpp << "		rule = rgUnknown;\n";
-			cpp << '\n';
-			cpp << "		#if " << headerGuardID << "_HAS_METADATA != 0\n";
-			cpp << "		if (metadata)\n";
-			cpp << "		{\n";
-			cpp << "			assert(metadataRelease != nullptr and \"invalid callback for releasing metadata\");\n";
-			cpp << "			metadataRelease(metadata);\n";
-			cpp << "			metadata = nullptr;\n";
-			cpp << "		}\n";
-			cpp << "		#endif\n";
 			cpp << "	}\n";
 			cpp << '\n';
 			cpp << '\n';
-			cpp << "	void Node::swap(Node& other)\n";
+/*			cpp << "	void Node::swap(Node& other)\n";
 			cpp << "	{\n";
 			cpp << "		std::swap(rule, other.rule);\n";
 			cpp << "		std::swap(offset, other.offset);\n";
 			cpp << "		std::swap(offsetEnd, other.offsetEnd);\n";
 			cpp << "		std::swap(text, other.text);\n";
 			cpp << "		std::swap(children, other.children);\n";
-			cpp << "		#if " << headerGuardID << "_HAS_METADATA != 0\n";
-			cpp << "		std::swap(metadata, other.metadata);\n";
-			cpp << "		#endif\n";
-			cpp << "	}\n";
+			cpp << "	}\n";*/
 			cpp << '\n';
 			cpp << '\n';
 		}
@@ -1188,7 +1473,7 @@ namespace PEG
 		{
 			headerGuardID = "__HEADER";
 
-			for (uint i = 0; i != namespaces.size(); ++i)
+			for (uint32_t i = 0; i != namespaces.size(); ++i)
 				headerGuardID << '_' << namespaces[i];
 			headerGuardID << "_GRAMMAR";
 			headerGuardID.toUpper();
@@ -1203,7 +1488,7 @@ namespace PEG
 
 			if (not namespaces.empty())
 			{
-				uint i = (uint) namespaces.size();
+				uint32_t i = (uint) namespaces.size();
 				do
 				{
 					--i;
@@ -1214,9 +1499,7 @@ namespace PEG
 				while (i > 0);
 			}
 
-			h << '\n' << "# include \"" << localInclude << "hxx\"\n\n";
-			h << "#endif // " << headerGuardID << "_H__\n";
-			hxx << "\n#endif // " << headerGuardID << "_HXX__\n";
+			h << '\n' << "#include \"" << localInclude << "hxx\"\n";
 		}
 
 
@@ -1250,7 +1533,7 @@ namespace PEG
 	bool Grammar::exportToCPP(const AnyString& rootfilename, const AnyString& name) const
 	{
 		CPPConverter data(rootfilename, pRules);
-		if (not data.initialize(name))
+		if (YUNI_UNLIKELY(not data.initialize(name)))
 			return false;
 
 		data.startHeaderheaderGuardID();

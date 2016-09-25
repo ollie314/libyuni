@@ -1,41 +1,12 @@
 /*
-** YUNI's default license is the GNU Lesser Public License (LGPL), with some
-** exclusions (see below). This basically means that you can get the full source
-** code for nothing, so long as you adhere to a few rules.
+** This file is part of libyuni, a cross-platform C++ framework (http://libyuni.org).
 **
-** Under the LGPL you may use YUNI for any purpose you wish, and modify it if you
-** require, as long as you:
+** This Source Code Form is subject to the terms of the Mozilla Public License
+** v.2.0. If a copy of the MPL was not distributed with this file, You can
+** obtain one at http://mozilla.org/MPL/2.0/.
 **
-** Pass on the (modified) YUNI source code with your software, with original
-** copyrights intact :
-**  * If you distribute electronically, the source can be a separate download
-**    (either from your own site if you modified YUNI, or to the official YUNI
-**    website if you used an unmodified version) – just include a link in your
-**    documentation
-**  * If you distribute physical media, the YUNI source that you used to build
-**    your application should be included on that media
-** Make it clear where you have customised it.
-**
-** In addition to the LGPL license text, the following exceptions / clarifications
-** to the LGPL conditions apply to YUNI:
-**
-**  * Making modifications to YUNI configuration files, build scripts and
-**    configuration headers such as yuni/platform.h in order to create a
-**    customised build setup of YUNI with the otherwise unmodified source code,
-**    does not constitute a derived work
-**  * Building against YUNI headers which have inlined code does not constitute a
-**    derived work
-**  * Code which subclasses YUNI classes outside of the YUNI libraries does not
-**    form a derived work
-**  * Statically linking the YUNI libraries into a user application does not make
-**    the user application a derived work.
-**  * Using source code obsfucation on the YUNI source code when distributing it
-**    is not permitted.
-** As per the terms of the LGPL, a "derived work" is one for which you have to
-** distribute source code for, so when the clauses above define something as not
-** a derived work, it means you don't have to distribute source code for it.
-** However, the original YUNI source code with all modifications must always be
-** made available.
+** github: https://github.com/libyuni/libyuni/
+** gitlab: https://gitlab.com/libyuni/libyuni/ (mirror)
 */
 #include <yuni/yuni.h>
 #include <yuni/core/string.h>
@@ -474,14 +445,14 @@ namespace UI
 
 			case WM_SIZE:
 			{
-				window->resize(LOWORD(lParam), HIWORD(lParam));
+				window->internalResize(LOWORD(lParam), HIWORD(lParam));
 				break;
 			}
 
 			case WM_SIZING:
 			{
-				//window->resize(rect.right - rect.left, rect.bottom - rect.top);
-				//std::cout << "Resizing to " << rect.right - rect.left << 'x' << rect.bottom - rect.top << std::endl;
+				RECT* rect = (RECT*)lParam;
+				window->internalResize(rect->right - rect->left, rect->bottom - rect->top);
 				break;
 			}
 
@@ -568,122 +539,52 @@ namespace UI
 
 	bool WGLWindow::enableFullScreen()
 	{
-		::ShowWindow(pHWnd, SW_HIDE);
-
-		// Find out the name of the device this window
-		// is on (this is for multi-monitor setups)
-		::HMONITOR hMonitor = ::MonitorFromWindow(pHWnd, MONITOR_DEFAULTTOPRIMARY);
-		::MONITORINFOEX monitorInfo;
-		::memset(&monitorInfo, 0, sizeof(::MONITORINFOEX));
-		monitorInfo.cbSize = (DWORD)sizeof(::MONITORINFOEX);
-		::GetMonitorInfo(hMonitor, &monitorInfo);
-
-		// Device Mode
-		::DEVMODE deviceMode;
-		::memset(&deviceMode, 0, sizeof(deviceMode));
-		deviceMode.dmSize = (WORD)sizeof(deviceMode);
-
-		bool found;
-		for (int i = 0; not found and ::EnumDisplaySettings(monitorInfo.szDevice, i, &deviceMode); ++i)
+		if (pState == wsMaximized)
 		{
-			found = (deviceMode.dmPelsWidth == (DWORD)pResWidth) &&
-				(deviceMode.dmPelsHeight == (DWORD)pResHeight) &&
-				(deviceMode.dmBitsPerPel == (DWORD)pBitDepth);
+			pPrevMaximized = true;
+			::SendMessage(pHWnd, WM_SYSCOMMAND, SC_RESTORE, 0);
 		}
+		else
+			pPrevMaximized = false;
+		pPrevStyle = ::GetWindowLong(pHWnd, GWL_STYLE);
+		pPrevExStyle = ::GetWindowLong(pHWnd, GWL_EXSTYLE);
+		::GetWindowRect(pHWnd, &pPrevRect);
 
-		if (not found)
-		{
-			::ShowWindow(pHWnd, SW_SHOW);
-			return false;
-		}
+		// Set new window style and size.
+		::SetWindowLong(pHWnd, GWL_STYLE,
+			pPrevStyle & ~(WS_CAPTION | WS_THICKFRAME));
+		::SetWindowLong(pHWnd, GWL_EXSTYLE,
+			pPrevExStyle & ~(WS_EX_DLGMODALFRAME |
+			WS_EX_WINDOWEDGE | WS_EX_CLIENTEDGE | WS_EX_STATICEDGE));
 
-		// Only change these 3 fields
-		deviceMode.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT;
+		// On expand, if we're given a window_rect, grow to it, otherwise do
+		// not resize.
+		MONITORINFO monitorInfo;
+		monitorInfo.cbSize = sizeof(monitorInfo);
+		::GetMonitorInfo(::MonitorFromWindow(pHWnd, MONITOR_DEFAULTTONEAREST), &monitorInfo);
+		::SetWindowPos(pHWnd, nullptr, monitorInfo.rcMonitor.left, monitorInfo.rcMonitor.top,
+			monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left,
+			monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top,
+			SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
 
-		// Try To Set Selected Mode And Get Results.
-		// NOTE: CDS_FULLSCREEN gets rid of Start Bar.
-		int ret = ::ChangeDisplaySettingsEx(nullptr, &deviceMode, nullptr, CDS_FULLSCREEN, nullptr);
-		if (ret != DISP_CHANGE_SUCCESSFUL)
-		{
-			// If the mode fails, use Windowed Mode.
-			std::cerr << "Window init error : The requested full-screen mode is not supported !" << std::endl;
-			switch (ret)
-			{
-				case DISP_CHANGE_BADFLAGS:
-					std::cerr << "!! An invalid set of flags was passed in." << std::endl;
-					break;
-				case DISP_CHANGE_BADMODE:
-					std::cerr << "!! The graphics mode is not supported. " << std::endl;
-					break;
-				case DISP_CHANGE_BADPARAM:
-					std::cerr << "!! An invalid parameter was passed in. This can include an invalid flag or combination of flags. " << std::endl;
-					break;
-				case DISP_CHANGE_FAILED:
-					std::cerr << "!! The display driver failed the specified graphics mode. " << std::endl;
-					break;
-				case DISP_CHANGE_NOTUPDATED:
-					std::cerr << "!! Windows NT/2000/XP: Unable to write settings to the registry. " << std::endl;
-					break;
-				case DISP_CHANGE_RESTART:
-					std::cerr << "!! The computer must be restarted in order for the graphics mode to work. " << std::endl;
-					break;
-			};
-
-			::ShowWindow(pHWnd, SW_SHOW);
-			return false;
-		}
-
-		// Hide mouse pointer
-		::ShowCursor(false);
-
-		// Remove title bar / window borders
-		DWORD dwStyle = WS_POPUP;
-		DWORD dwExStyle = WS_EX_APPWINDOW;
-		::SetWindowLong(pHWnd, GWL_STYLE, dwStyle);
-		::SetWindowLong(pHWnd, GWL_EXSTYLE, dwExStyle);
-
-		// Adjust window to proper size
-		::MoveWindow(pHWnd, 0, 0, pResWidth, pResHeight, true);
-
-		::ShowWindow(pHWnd, SW_SHOW);
 		return true;
 	}
 
 
 	bool WGLWindow::disableFullScreen()
 	{
-		::ShowWindow(pHWnd, SW_HIDE);
-
-		// Find out the name of the device this window
-		// is on (this is for multi-monitor setups)
-		::HMONITOR hMonitor = ::MonitorFromWindow(pHWnd, MONITOR_DEFAULTTOPRIMARY);
-		::MONITORINFOEX monitorInfo;
-		::memset(&monitorInfo, 0, sizeof(::MONITORINFOEX));
-		monitorInfo.cbSize = (DWORD)sizeof(::MONITORINFOEX);
-		::GetMonitorInfo(hMonitor, &monitorInfo);
-
-		// Restore the display resolution
-		if (::ChangeDisplaySettingsEx(monitorInfo.szDevice, nullptr, nullptr, 0, nullptr) != DISP_CHANGE_SUCCESSFUL)
-		{
-			::ShowWindow(pHWnd, SW_SHOW);
-			return false;
-		}
-
-		pFullScreen = false;
-
-		// Show mouse pointer
-		::ShowCursor(true);
-
 		// Reset the window style
-		DWORD dwStyle = WS_OVERLAPPEDWINDOW;
-		DWORD dwExStyle = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
-		::SetWindowLong(pHWnd, GWL_STYLE, dwStyle);
-		::SetWindowLong(pHWnd, GWL_EXSTYLE, dwExStyle);
+		::SetWindowLong(pHWnd, GWL_STYLE, pPrevStyle);
+		::SetWindowLong(pHWnd, GWL_EXSTYLE, pPrevExStyle);
 
 		// Adjust window to proper size
-		::MoveWindow(pHWnd, pLeft, pTop, pWidth, pHeight, true);
+		::SetWindowPos(pHWnd, nullptr, pPrevRect.left,  pPrevRect.top,
+			pPrevRect.right - pPrevRect.left,
+			pPrevRect.bottom - pPrevRect.top,
+			SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
 
-		::ShowWindow(pHWnd, SW_SHOW);
+		if (pPrevMaximized)
+			::SendMessage(pHWnd, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
 
 		return true;
 	}
@@ -831,7 +732,7 @@ namespace UI
 		::SetFocus(pHWnd);
 
 		// Set up our perspective GL screen
-		resize(pWidth, pHeight);
+		internalResize(pWidth, pHeight);
 
 		TRACKMOUSEEVENT tme;
 		tme.cbSize = (DWORD)sizeof(TRACKMOUSEEVENT);
@@ -938,7 +839,7 @@ namespace UI
 	}
 
 
-	void WGLWindow::setIcon(const AnyString& path)
+	void WGLWindow::icon(const AnyString& path)
 	{
 		// Load 32x32 icon (alt-tab menu)
 		WString wstr(path);
@@ -954,6 +855,13 @@ namespace UI
 			::SendMessage(pHWnd, WM_SETICON, ICON_SMALL, (LPARAM)hIconSmall);
 		else
 			std::cerr << "Error : Could not load small icon : \"" << path << "\"" << std::endl;
+	}
+
+
+	void WGLWindow::title(const AnyString& title)
+	{
+		if (!::SetWindowText(pHWnd, WString{ title }.c_str()))
+			std::cerr << "Error : Could not change window title to : \"" << title << "\"" << std::endl;
 	}
 
 
@@ -995,6 +903,22 @@ namespace UI
 			::glEnable(GL_MULTISAMPLE);
 		else
 			::glDisable(GL_MULTISAMPLE);
+	}
+
+
+	void WGLWindow::resize(uint width, uint height)
+	{
+		if (width != this->width() || height != this->height())
+		{
+			internalResize(width, height);
+			::SetWindowPos(pHWnd, nullptr, 0, 0, width, height, SWP_NOMOVE);
+		}
+	}
+
+
+	void WGLWindow::internalResize(uint width, uint height)
+	{
+		GLWindow::resize(width, height);
 	}
 
 

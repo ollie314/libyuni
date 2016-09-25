@@ -1,41 +1,12 @@
 /*
-** YUNI's default license is the GNU Lesser Public License (LGPL), with some
-** exclusions (see below). This basically means that you can get the full source
-** code for nothing, so long as you adhere to a few rules.
+** This file is part of libyuni, a cross-platform C++ framework (http://libyuni.org).
 **
-** Under the LGPL you may use YUNI for any purpose you wish, and modify it if you
-** require, as long as you:
+** This Source Code Form is subject to the terms of the Mozilla Public License
+** v.2.0. If a copy of the MPL was not distributed with this file, You can
+** obtain one at http://mozilla.org/MPL/2.0/.
 **
-** Pass on the (modified) YUNI source code with your software, with original
-** copyrights intact :
-**  * If you distribute electronically, the source can be a separate download
-**    (either from your own site if you modified YUNI, or to the official YUNI
-**    website if you used an unmodified version) – just include a link in your
-**    documentation
-**  * If you distribute physical media, the YUNI source that you used to build
-**    your application should be included on that media
-** Make it clear where you have customised it.
-**
-** In addition to the LGPL license text, the following exceptions / clarifications
-** to the LGPL conditions apply to YUNI:
-**
-**  * Making modifications to YUNI configuration files, build scripts and
-**    configuration headers such as yuni/platform.h in order to create a
-**    customised build setup of YUNI with the otherwise unmodified source code,
-**    does not constitute a derived work
-**  * Building against YUNI headers which have inlined code does not constitute a
-**    derived work
-**  * Code which subclasses YUNI classes outside of the YUNI libraries does not
-**    form a derived work
-**  * Statically linking the YUNI libraries into a user application does not make
-**    the user application a derived work.
-**  * Using source code obsfucation on the YUNI source code when distributing it
-**    is not permitted.
-** As per the terms of the LGPL, a "derived work" is one for which you have to
-** distribute source code for, so when the clauses above define something as not
-** a derived work, it means you don't have to distribute source code for it.
-** However, the original YUNI source code with all modifications must always be
-** made available.
+** github: https://github.com/libyuni/libyuni/
+** gitlab: https://gitlab.com/libyuni/libyuni/ (mirror)
 */
 #pragma once
 #include "../../yuni.h"
@@ -65,6 +36,7 @@
 # include <vector>
 #endif
 #include <list>
+#include <iosfwd>
 
 #ifdef YUNI_OS_MSVC
 #pragma warning(pop)
@@ -78,10 +50,7 @@
 #include "traits/fill.h"
 #include "traits/vnsprintf.h"
 #include "traits/into.h"
-
-#ifdef YUNI_HAS_CPP_MOVE
-# include <utility>
-#endif
+#include <utility>
 
 
 
@@ -109,7 +78,7 @@ namespace Yuni
 	** Example for iterating through all characters (the recommended way)
 	** \code
 	** String t = "こんにちは";
-	** const String::const_utf8iterator end = t.utf8end();
+	** const String::null_iterator end = t.utf8end();
 	** for (String::const_utf8iterator i = t.utf8begin(); i != end; ++i)
 	**	std::cout << "char at offset " << i.offset() << ": " << *i << std::endl;
 	** \endcode
@@ -192,27 +161,18 @@ namespace Yuni
 		//! A string list
 		typedef std::list<Ptr> ListPtr;
 
-		enum
-		{
-			//! Size for a single chunk
-			chunkSize      = AncestorType::chunkSize,
-			//! Invalid offset
-			npos           = (Size)(-1),
-			//! A non-zero value if the string must be zero terminated
-			zeroTerminated = 1, //AncestorType::zeroTerminated,
-			//! A non-zero value if the string can be expanded
-			expandable     = AncestorType::expandable,
-			//! True if the string is a string adapter (only read-only operations are allowed)
-			adapter        = (0 == chunkSize and expandable),
-		};
-		//! char Case
-		enum charCase
-		{
-			//! The string should remain untouched
-			soCaseSensitive,
-			//! The string should be converted to lowercase
-			soIgnoreCase
-		};
+		//! Size for a single chunk
+		static constexpr yuint32 chunkSize = AncestorType::chunkSize;
+		//! A non-zero value if the string must be zero terminated
+		static constexpr bool zeroTerminated = true;
+		//! Invalid offset
+		static constexpr Size npos = static_cast<Size>(-1);
+		//! A non-zero value if the string can be expanded
+		static constexpr bool expandable = AncestorType::expandable;
+
+		//! True if the string is a string adapter (only read-only operations are allowed)
+		static constexpr bool adapter = (0 == chunkSize and expandable);
+
 
 		//! Self, which can be written
 		typedef typename Static::If<adapter or (0 == expandable and chunkSize > 512),
@@ -310,13 +270,10 @@ namespace Yuni
 		/*!
 		** \brief Constructor from another string
 		*/
-		template<uint SizeT, bool ExpT>
-		CString(const CString<SizeT,ExpT>& string);
+		template<uint SizeT, bool ExpT> CString(const CString<SizeT,ExpT>& string);
 
-		# ifdef YUNI_HAS_CPP_MOVE
 		//! Move constructor
 		CString(CString&& rhs);
-		# endif
 
 		/*!
 		** \brief Constructor from a copy of a substring of 's'
@@ -409,7 +366,7 @@ namespace Yuni
 		template<class U> explicit CString(const U& rhs);
 
 		//! Destructor
-		~CString() {}
+		~CString() = default;
 		//@}
 
 
@@ -1412,6 +1369,11 @@ namespace Yuni
 		CString& clear();
 
 		/*!
+		** \brief Return the inner C-string and clear the string without freeing the inner pointer
+		*/
+		char* forgetContent();
+
+		/*!
 		** \brief Erase a part of the string
 		**
 		** \param offset The offset (zero-based) of the first item to erase
@@ -1809,6 +1771,11 @@ namespace Yuni
 		bool null() const;
 
 		/*!
+		** \brief Get if the string is empty string, or only whitespaces
+		*/
+		bool blank() const;
+
+		/*!
 		** \brief Get the current capacity of the string (in bytes)
 		** \return The amount of memory used by the string
 		*/
@@ -1887,6 +1854,10 @@ namespace Yuni
 		*/
 		char last() const;
 
+		/*!
+		** \brief Swap the content between two strings
+		*/
+		void swap(CString&);
 
 		/*!
 		** \brief Get if the string matches a simple pattern ('*' only managed)
@@ -2038,10 +2009,8 @@ namespace Yuni
 		//! The operator `=` (assign)
 		template<class U> CString& operator = (const U& rhs);
 
-		# ifdef YUNI_HAS_CPP_MOVE
 		//! Move operator
 		CString& operator = (CString&& rhs);
-		# endif
 
 
 		//! The operator `<`
@@ -2137,23 +2106,6 @@ namespace Yuni
 {
 namespace Traits
 {
-
-	/*!
-	** \brief Class helper to know if a type is a valid string representation
-	*/
-	template<class U>
-	class YUNI_DECL IsString final
-	{
-	public:
-		enum
-		{
-			//! A non-zero value if the type 'U' is a valid string representation
-			yes = (Traits::CString<U>::valid and Traits::Length<U>::valid),
-			//! A non-zero value if the type 'U' is _not_ a valid string representation
-			no  = (not Traits::CString<U>::valid and not Traits::Length<U>::valid),
-		};
-	};
-
 
 
 

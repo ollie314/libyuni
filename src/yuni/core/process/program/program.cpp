@@ -1,41 +1,12 @@
 /*
-** YUNI's default license is the GNU Lesser Public License (LGPL), with some
-** exclusions (see below). This basically means that you can get the full source
-** code for nothing, so long as you adhere to a few rules.
+** This file is part of libyuni, a cross-platform C++ framework (http://libyuni.org).
 **
-** Under the LGPL you may use YUNI for any purpose you wish, and modify it if you
-** require, as long as you:
+** This Source Code Form is subject to the terms of the Mozilla Public License
+** v.2.0. If a copy of the MPL was not distributed with this file, You can
+** obtain one at http://mozilla.org/MPL/2.0/.
 **
-** Pass on the (modified) YUNI source code with your software, with original
-** copyrights intact :
-**  * If you distribute electronically, the source can be a separate download
-**    (either from your own site if you modified YUNI, or to the official YUNI
-**    website if you used an unmodified version) – just include a link in your
-**    documentation
-**  * If you distribute physical media, the YUNI source that you used to build
-**    your application should be included on that media
-** Make it clear where you have customised it.
-**
-** In addition to the LGPL license text, the following exceptions / clarifications
-** to the LGPL conditions apply to YUNI:
-**
-**  * Making modifications to YUNI configuration files, build scripts and
-**    configuration headers such as yuni/platform.h in order to create a
-**    customised build setup of YUNI with the otherwise unmodified source code,
-**    does not constitute a derived work
-**  * Building against YUNI headers which have inlined code does not constitute a
-**    derived work
-**  * Code which subclasses YUNI classes outside of the YUNI libraries does not
-**    form a derived work
-**  * Statically linking the YUNI libraries into a user application does not make
-**    the user application a derived work.
-**  * Using source code obsfucation on the YUNI source code when distributing it
-**    is not permitted.
-** As per the terms of the LGPL, a "derived work" is one for which you have to
-** distribute source code for, so when the clauses above define something as not
-** a derived work, it means you don't have to distribute source code for it.
-** However, the original YUNI source code with all modifications must always be
-** made available.
+** github: https://github.com/libyuni/libyuni/
+** gitlab: https://gitlab.com/libyuni/libyuni/ (mirror)
 */
 #include "program.h"
 #include "../../../thread/thread.h"
@@ -55,6 +26,12 @@
 #include "../../../datetime/timestamp.h"
 #include "../../../io/directory.h"
 #include "process-info.h"
+#include <iostream>
+
+#ifdef YUNI_OS_UNIX
+# include <sys/types.h>
+#endif
+#include <signal.h>
 
 
 
@@ -84,9 +61,9 @@ namespace Process
 	protected:
 		virtual bool onExecute() override;
 
-		virtual void onPause();
+		virtual void onPause() override;
 
-		virtual void onStop();
+		virtual void onStop() override;
 
 		virtual void onKill() override;
 
@@ -245,6 +222,150 @@ namespace Process
 
 
 
+
+
+
+
+
+	Program::ProcessSharedInfo::~ProcessSharedInfo()
+	{
+		if (YUNI_UNLIKELY(timeoutThread))
+		{
+			// should never go in this section
+			assert(false and "the thread for handling the timeout has not been properly stopped");
+			timeoutThread->stop();
+			delete timeoutThread;
+		}
+
+		if (thread and thread->release())
+			delete thread;
+	}
+
+
+	# ifdef YUNI_OS_WINDOWS
+	namespace // anonymous
+	{
+
+		static inline void QuitProcess(DWORD processID)
+		{
+			assert(processID != 0);
+			// Loop on process windows
+			for (HWND hwnd = ::GetTopWindow(nullptr); hwnd; hwnd = ::GetNextWindow(hwnd, GW_HWNDNEXT))
+			{
+				DWORD windowProcessID;
+				DWORD threadID = ::GetWindowThreadProcessId(hwnd, &windowProcessID);
+				if (windowProcessID == processID)
+					// Send WM_QUIT to the process thread
+					::PostThreadMessage(threadID, WM_QUIT, 0, 0);
+			}
+		}
+
+	} // namespace anonymous
+	# endif
+
+
+	bool Program::ProcessSharedInfo::sendSignal(bool withLock, int sigvalue)
+	{
+		if (withLock)
+			mutex.lock();
+		if (0 == running)
+		{
+			if (withLock)
+				mutex.unlock();
+			return false;
+		}
+
+		# ifndef YUNI_OS_WINDOWS
+		{
+			const pid_t pid = static_cast<pid_t>(processID);
+			if (withLock)
+				mutex.unlock();
+			if (pid > 0)
+				return (0 == ::kill(pid, sigvalue));
+		}
+		# else
+		{
+			// switch (sigvalue) ...
+
+			// All signals are handled by force-quitting the child process' window threads.
+			QuitProcess(processID);
+
+			if (withLock)
+				mutex.unlock();
+		}
+		# endif
+
+		// mutex must be unlocked here
+		return false;
+	}
+
+
+
+
+	namespace // anonymous
+	{
+
+		class TimeoutThread final: public Thread::IThread
+		{
+		public:
+			TimeoutThread(int pid, uint timeout)
+				: timeout(timeout)
+				, pid(pid)
+			{
+				assert(pid > 0);
+			}
+
+			virtual ~TimeoutThread() {}
+
+
+		protected:
+			virtual bool onExecute() override
+			{
+				// wait for timeout... (note: the timeout is in seconds)
+				if (not suspend(timeout * 1000))
+				{
+					// the timeout has been reached
+
+					#ifdef YUNI_OS_UNIX
+					::kill(pid, SIGKILL);
+					#else
+					QuitProcess(pid);
+					#endif
+				}
+				return false; // stop the thread, does not suspend it
+			}
+
+
+		private:
+			//! Timeout in seconds
+			uint timeout;
+			//! PID of the sub process
+			int pid;
+		};
+
+
+	} // anonymous namespace
+
+
+	void Program::ProcessSharedInfo::createThreadForTimeoutWL()
+	{
+		delete timeoutThread; // for code safety
+
+		if (processID > 0 and timeout > 0)
+		{
+			timeoutThread = new (std::nothrow) TimeoutThread(processID, timeout);
+			if (timeoutThread)
+				timeoutThread->start();
+		}
+		else
+		{
+			// no valid pid, no thread required for a timeout
+			timeoutThread = nullptr;
+		}
+	}
+
+
+
 } // namespace Process
 } // namespace Yuni
 
@@ -266,9 +387,25 @@ namespace Process
 	}
 
 
+	Program::Program(const Program& rhs)
+		: pEnv(rhs.pEnv)
+		, pStream(rhs.pStream)
+	{
+		// keep the symbol local
+	}
+
+
 	Program::~Program()
 	{
 		// keep the symbol local
+	}
+
+
+	Program& Program::operator = (const Program& rhs)
+	{
+		pEnv = rhs.pEnv;
+		pStream = rhs.pStream;
+		return *this;
 	}
 
 
@@ -277,7 +414,7 @@ namespace Process
 		#ifndef YUNI_OS_MSVC
 		ProcessSharedInfo::Ptr envptr = pEnv;
 		if (!(!envptr))
-			envptr->sendSignal<true>(sig);
+			envptr->sendSignal(true, sig);
 		#else
 		// Signals are not supported on Windows. Silently ignoring it.
 		(void) sig;
@@ -308,7 +445,9 @@ namespace Process
 		ProcessSharedInfo::Ptr envptr = pEnv;
 		if (!envptr)
 		{
-			envptr = new ProcessSharedInfo();
+			envptr = new (std::nothrow) ProcessSharedInfo();
+			if (!envptr)
+				return false;
 			pEnv = envptr;
 		}
 		ProcessSharedInfo& env = *envptr;
@@ -335,22 +474,19 @@ namespace Process
 		}
 
 		// starting a new thread
-		// prepare commands
-		ThreadMonitor* newthread = new ThreadMonitor(*this);
+		ThreadMonitor* localRef = new (std::nothrow) ThreadMonitor(*this);
+		if (!localRef)
+			return false;
 
-		// keep a local reference to avoid race condition if `env.thread` is modified
-		// by another thread
-		ThreadMonitor::Ptr localRef = newthread;
-		(void) localRef; // avoid compiler warning
+		localRef->addRef();
 		// keep somewhere
-		env.thread = newthread;
-
+		env.thread = localRef;
 		// execute the sub command from the **calling** thread
-		bool processReady = newthread->spawnProcess();
+		bool processReady = localRef->spawnProcess();
 
 		// start a sub thread to monitor the underlying process
 		if (processReady)
-			newthread->start();
+			localRef->start();
 		return processReady;
 	}
 
@@ -366,11 +502,11 @@ namespace Process
 		}
 		ProcessSharedInfo& env = *envptr;
 
-		ThreadPtr thread;
+		ThreadMonitor* thread = nullptr;
 		// checking environment
 		{
 			MutexLocker locker(env.mutex);
-			if (not env.running or not env.thread)
+			if (not env.running or (nullptr == env.thread))
 			{
 				if (duration)
 					*duration = env.duration;
@@ -378,16 +514,24 @@ namespace Process
 			}
 			// capture the thread
 			thread = env.thread;
+			thread->addRef();
 		}
 
 		// wait for the end of the thread
+		assert(thread != nullptr);
 		thread->wait();
 
+
+		MutexLocker locker(env.mutex);
+
 		// since the thread has finished, we can safely destroy it
+		if (env.thread)
+			env.thread->release();
 		env.thread = nullptr;
 
-		// results
-		MutexLocker locker(env.mutex);
+		if (thread->release())
+			delete thread;
+
 		if (duration)
 			*duration = env.duration;
 		return env.exitstatus;
@@ -473,7 +617,9 @@ namespace Process
 		ProcessSharedInfo::Ptr envptr = pEnv; // keeping a reference to the current env
 		if (!envptr)
 		{
-			envptr = new ProcessSharedInfo();
+			envptr = new (std::nothrow) ProcessSharedInfo();
+			if (!envptr)
+				return false;
 			pEnv = envptr;
 		}
 
@@ -512,12 +658,17 @@ namespace Process
 	}
 
 
-	void Program::commandLine(const AnyString& cmd)
+	void Program::commandLine(AnyString cmd)
 	{
+		// remove all whitespaces
+		cmd.trim();
+
 		ProcessSharedInfo::Ptr envptr = pEnv; // keeping a reference to the current env
 		if (!envptr)
 		{
-			envptr = new ProcessSharedInfo();
+			envptr = new (std::nothrow) ProcessSharedInfo();
+			if (!envptr)
+				return;
 			pEnv = envptr;
 		}
 		ProcessSharedInfo& env = *envptr;
@@ -526,68 +677,76 @@ namespace Process
 		env.executable.clear();
 		env.arguments.clear();
 
-		if (not cmd.empty())
+		if (cmd.empty())
+			return;
+
+
+		String* str = &env.executable;
+		char instring = '\0';
+		const AnyString::null_iterator end = cmd.utf8end();
+		for (AnyString::const_utf8iterator i = cmd.utf8begin(); i != end; ++i)
 		{
-			uint offset = 0;
-			bool foundExecutable = false;
-
-			do
+			char c = *i;
+			switch (c)
 			{
-				// Looking for the next whitespace
-				offset = cmd.find_first_not_of(" \t\r\n", offset);
-				if (offset >= cmd.size())
+				default:
+				{
+					*str += i.value();
 					break;
-
-				// ok, we have a new entry
-				uint next = offset;
-				bool escape = false;
-				char withinString = '\0';
-				do
+				}
+				case '"':
+				case '\'':
 				{
-					char c = cmd[next];
-					if (c == '\\')
+					if (instring == '\0')
 					{
-						escape = not escape;
+						instring = c;
 					}
 					else
 					{
-						if (c == '\'' or c == '"')
+						if (instring == c)
+							instring = '\0';
+						else
+							*str += c;
+					}
+					break;
+				}
+				case '\\':
+				{
+					++i;
+					if (YUNI_UNLIKELY(i == end))
+						return;
+					c = *i;
+					switch (c)
+					{
+						case 'n':  (*str) += '\n'; break;
+						case 't':  (*str) += '\t'; break;
+						case 'r':  (*str) += '\r'; break;
+						case 'b':  (*str) += '\b'; break;
+						case 'f':  (*str) += '\f'; break;
+						case 'v':  (*str) += '\v'; break;
+						case '0':  (*str) += '\0'; break;
+						case 'e':
+						case 'a':
+						case 'E':  break;
+						default:   (*str) << '\\' << c; break;
+					}
+				}
+				case ' ':
+				case '\t':
+				{
+					if (instring == '\0')
+					{
+						if (not str->empty())
 						{
-							if (not escape)
-							{
-								if (withinString == c)
-									withinString = '\0'; // end of literal
-								else if (withinString == '\0') // starts a new literal
-									withinString = c;
-							}
-						}
-						if (withinString == '\0')
-						{
-							if (c == ' ' or c == '\t' or c == '\r' or c == '\n')
-								break;
+							env.arguments.push_back(nullptr);
+							str = &(env.arguments.back());
 						}
 					}
-					++next;
-				}
-				while (next < cmd.size());
-
-				if (next > offset)
-				{
-					AnyString arg;
-					if (next - offset > 1 and cmd[next - 1] == cmd[offset] and (cmd[offset] == '"' or cmd[offset] == '\''))
-						arg.adapt(cmd.c_str() + offset + 1, next - offset - 2);
 					else
-						arg.adapt(cmd.c_str() + offset, next - offset);
-
-					if (not foundExecutable)
-						env.executable = arg;
-					else
-						env.arguments.push_back(arg);
-					foundExecutable = true;
+						*str += c;
+					break;
 				}
-				offset = next;
 			}
-			while (offset < cmd.size());
 		}
 	}
 
@@ -597,7 +756,9 @@ namespace Process
 		ProcessSharedInfo::Ptr envptr = pEnv; // keeping a reference to the current env
 		if (!envptr)
 		{
-			envptr = new ProcessSharedInfo();
+			envptr = new (std::nothrow) ProcessSharedInfo();
+			if (!envptr)
+				return;
 			pEnv = envptr;
 		}
 		ProcessSharedInfo& env = *envptr;
@@ -638,7 +799,9 @@ namespace Process
 			if (flag)
 				return; // default is true, useless to instanciate something
 
-			envptr = new ProcessSharedInfo();
+			envptr = new (std::nothrow) ProcessSharedInfo();
+			if (!envptr)
+				return;
 			pEnv = envptr;
 		}
 		ProcessSharedInfo& env = *envptr;
@@ -665,7 +828,9 @@ namespace Process
 		ProcessSharedInfo::Ptr envptr = pEnv; // keeping a reference to the current env
 		if (!envptr)
 		{
-			envptr = new ProcessSharedInfo();
+			envptr = new (std::nothrow) ProcessSharedInfo();
+			if (!envptr)
+				return;
 			pEnv = envptr;
 		}
 		ProcessSharedInfo& env = *envptr;
@@ -694,7 +859,9 @@ namespace Process
 		ProcessSharedInfo::Ptr envptr = pEnv; // keeping a reference to the current env
 		if (!envptr)
 		{
-			envptr = new ProcessSharedInfo();
+			envptr = new (std::nothrow) ProcessSharedInfo();
+			if (!envptr)
+				return;
 			pEnv = envptr;
 		}
 		ProcessSharedInfo& env = *envptr;
@@ -723,7 +890,9 @@ namespace Process
 		ProcessSharedInfo::Ptr envptr = pEnv; // keeping a reference to the current env
 		if (!envptr)
 		{
-			envptr = new ProcessSharedInfo();
+			envptr = new (std::nothrow) ProcessSharedInfo();
+			if (!envptr)
+				return;
 			pEnv = envptr;
 		}
 		ProcessSharedInfo& env = *envptr;
@@ -735,10 +904,52 @@ namespace Process
 	}
 
 
+	bool Execute(const AnyString& commandLine, uint timeout)
+	{
+		Program program;
+		program.commandLine(commandLine);
+		return (program.execute(timeout)) ? (0 == program.wait()) : false;
+	}
+
+
+	bool System(String* cout, String* cerr, const AnyString& commandline, uint timeout)
+	{
+		Program program;
+		program.commandLine(commandline);
+
+		CaptureOutput* output = new (std::nothrow) CaptureOutput();
+		if (!output)
+			return false;
+
+		program.stream(output);
+		bool success = program.execute(timeout) and (0 == program.wait());
+
+		if (cout)
+			*cout = output->cout;
+		if (cerr)
+			*cerr = output->cerr;
+		return success;
+	}
+
+
+	String System(const AnyString& commandline, bool trim, uint timeout)
+	{
+		Program program;
+		program.commandLine(commandline);
+
+		CaptureOutput* output = new (std::nothrow) CaptureOutput();
+		if (!output)
+			return String{};
+
+		program.stream(output);
+		program.execute(timeout) and (0 == program.wait());
+		if (trim)
+			output->cout.trim();
+		return output->cout;
+	}
 
 
 
 
 } // namespace Process
 } // namespace Yuni
-

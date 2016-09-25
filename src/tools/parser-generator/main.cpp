@@ -1,41 +1,12 @@
 /*
-** YUNI's default license is the GNU Lesser Public License (LGPL), with some
-** exclusions (see below). This basically means that you can get the full source
-** code for nothing, so long as you adhere to a few rules.
+** This file is part of libyuni, a cross-platform C++ framework (http://libyuni.org).
 **
-** Under the LGPL you may use YUNI for any purpose you wish, and modify it if you
-** require, as long as you:
+** This Source Code Form is subject to the terms of the Mozilla Public License
+** v.2.0. If a copy of the MPL was not distributed with this file, You can
+** obtain one at http://mozilla.org/MPL/2.0/.
 **
-** Pass on the (modified) YUNI source code with your software, with original
-** copyrights intact :
-**  * If you distribute electronically, the source can be a separate download
-**    (either from your own site if you modified YUNI, or to the official YUNI
-**    website if you used an unmodified version) – just include a link in your
-**    documentation
-**  * If you distribute physical media, the YUNI source that you used to build
-**    your application should be included on that media
-** Make it clear where you have customised it.
-**
-** In addition to the LGPL license text, the following exceptions / clarifications
-** to the LGPL conditions apply to YUNI:
-**
-**  * Making modifications to YUNI configuration files, build scripts and
-**    configuration headers such as yuni/platform.h in order to create a
-**    customised build setup of YUNI with the otherwise unmodified source code,
-**    does not constitute a derived work
-**  * Building against YUNI headers which have inlined code does not constitute a
-**    derived work
-**  * Code which subclasses YUNI classes outside of the YUNI libraries does not
-**    form a derived work
-**  * Statically linking the YUNI libraries into a user application does not make
-**    the user application a derived work.
-**  * Using source code obsfucation on the YUNI source code when distributing it
-**    is not permitted.
-** As per the terms of the LGPL, a "derived work" is one for which you have to
-** distribute source code for, so when the clauses above define something as not
-** a derived work, it means you don't have to distribute source code for it.
-** However, the original YUNI source code with all modifications must always be
-** made available.
+** github: https://github.com/libyuni/libyuni/
+** gitlab: https://gitlab.com/libyuni/libyuni/ (mirror)
 */
 #include <yuni/yuni.h>
 #include <yuni/core/string.h>
@@ -43,7 +14,6 @@
 #include <yuni/core/getopt.h>
 #include <yuni/core/logs.h>
 #include <yuni/parser/peg/grammar.h>
-#include <yuni/core/variant.h>
 
 using namespace Yuni;
 
@@ -71,9 +41,11 @@ public:
 
 public:
 	//! All filenames
-	String::Vector filenames;
+	String filename;
 	//! Namespace
 	String namespaceName;
+	//! Output folder
+	String outputFolder;
 
 	//! Export format
 	Format format;
@@ -103,13 +75,14 @@ static void ParseError(const AnyString& message)
 static inline void ParseCommandLine(int argc, char** argv, Settings& settings)
 {
 	GetOpt::Parser options;
-	String::Vector optFilenames;
+	String optFilename;
 	ShortString16 format;
+	String outputFolder;
 
-	options.add(optFilenames, 'i', "input", "The input grammar");
-	options.add(settings.namespaceName, 'n', "namespace", "The target namespace (mandatory)");
+	options.add(optFilename, 'i', "input", "The input grammar");
+	options.add(settings.namespaceName, 'n', "namespace", "The target namespace (required)");
 	options.add(format, 'f', "format", "Output format [cpp]");
-	options.remainingArguments(optFilenames);
+	options.add(outputFolder, 'o', "output", "Output folder (required)");
 
 	if (not options(argc, argv))
 	{
@@ -121,9 +94,15 @@ static inline void ParseCommandLine(int argc, char** argv, Settings& settings)
 		exit(0);
 	}
 
-	if (optFilenames.empty())
+	if (not IO::File::Exists(optFilename))
 	{
-		logs.error() << "please provide a grammar file";
+		logs.error() << "input grammar file not found: '" << optFilename << "'";
+		exit(EXIT_FAILURE);
+	}
+
+	if (outputFolder.empty())
+	{
+		logs.error() << "an output folder is required";
 		exit(EXIT_FAILURE);
 	}
 
@@ -146,9 +125,8 @@ static inline void ParseCommandLine(int argc, char** argv, Settings& settings)
 		exit(EXIT_FAILURE);
 	}
 
-	settings.filenames.resize((uint) optFilenames.size());
-	for (uint i = 0; i != (uint) optFilenames.size(); ++i)
-		IO::Canonicalize(settings.filenames[i], optFilenames[i]);
+	IO::Canonicalize(settings.filename, optFilename);
+	IO::Canonicalize(settings.outputFolder, outputFolder);
 }
 
 
@@ -170,43 +148,32 @@ int main(int argc, char** argv)
 	grammar.onWarning.connect(& ParseWarning);
 	grammar.onError.connect(& ParseError);
 
-	String output;
-
-	for (uint i = 0; i != (uint) settings.filenames.size(); ++i)
+	// generate C++ classes from grammar file
+	if (grammar.loadFromFile(settings.filename))
 	{
-		const String& url = settings.filenames[i];
+		String barname;
+		IO::ExtractFileName(barname, settings.filename);
 
-		if (not IO::File::Exists(url))
+		String output;
+		output << settings.outputFolder << IO::Separator << barname;
+		IO::ReplaceExtension(output, "."); // remove extension
+
+		switch (settings.format)
 		{
-			logs.error() << "error: \"" << url << "\" file not found";
-			hasError = true;
-			continue;
-		}
-
-		if (grammar.loadFromFile(url))
-		{
-			//std::cout << grammar << std::endl;
-
-			output = url;
-			IO::ReplaceExtension(output, ".");
-
-			switch (settings.format)
+			case Settings::sfCPP:
 			{
-				case Settings::sfCPP:
-				{
-					logs.info() << "generating c++ parser from " << url;
-					grammar.exportToCPP(output, settings.namespaceName);
-					break;
-				}
+				logs.info() << "generating c++ parser from " << settings.filename;
+				logs.info() << "c++ classes output: " << output;
+				grammar.exportToCPP(output, settings.namespaceName);
+				break;
 			}
 		}
-		else
-		{
-			logs.error() << "impossible to load the grammar " << url;
-			hasError = true;
-		}
 	}
-
-	return (not hasError) ? 0 : EXIT_FAILURE;
+	else
+	{
+		logs.error() << "impossible to load the grammar " << settings.filename;
+		return EXIT_FAILURE;
+	}
+	return 0;
 }
 

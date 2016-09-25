@@ -1,41 +1,12 @@
 /*
-** YUNI's default license is the GNU Lesser Public License (LGPL), with some
-** exclusions (see below). This basically means that you can get the full source
-** code for nothing, so long as you adhere to a few rules.
+** This file is part of libyuni, a cross-platform C++ framework (http://libyuni.org).
 **
-** Under the LGPL you may use YUNI for any purpose you wish, and modify it if you
-** require, as long as you:
+** This Source Code Form is subject to the terms of the Mozilla Public License
+** v.2.0. If a copy of the MPL was not distributed with this file, You can
+** obtain one at http://mozilla.org/MPL/2.0/.
 **
-** Pass on the (modified) YUNI source code with your software, with original
-** copyrights intact :
-**  * If you distribute electronically, the source can be a separate download
-**    (either from your own site if you modified YUNI, or to the official YUNI
-**    website if you used an unmodified version) – just include a link in your
-**    documentation
-**  * If you distribute physical media, the YUNI source that you used to build
-**    your application should be included on that media
-** Make it clear where you have customised it.
-**
-** In addition to the LGPL license text, the following exceptions / clarifications
-** to the LGPL conditions apply to YUNI:
-**
-**  * Making modifications to YUNI configuration files, build scripts and
-**    configuration headers such as yuni/platform.h in order to create a
-**    customised build setup of YUNI with the otherwise unmodified source code,
-**    does not constitute a derived work
-**  * Building against YUNI headers which have inlined code does not constitute a
-**    derived work
-**  * Code which subclasses YUNI classes outside of the YUNI libraries does not
-**    form a derived work
-**  * Statically linking the YUNI libraries into a user application does not make
-**    the user application a derived work.
-**  * Using source code obsfucation on the YUNI source code when distributing it
-**    is not permitted.
-** As per the terms of the LGPL, a "derived work" is one for which you have to
-** distribute source code for, so when the clauses above define something as not
-** a derived work, it means you don't have to distribute source code for it.
-** However, the original YUNI source code with all modifications must always be
-** made available.
+** github: https://github.com/libyuni/libyuni/
+** gitlab: https://gitlab.com/libyuni/libyuni/ (mirror)
 */
 #pragma once
 #include "string.h"
@@ -44,7 +15,6 @@
 #ifdef YUNI_HAS_VA_COPY
 # include <stdarg.h>
 #endif // YUNI_HAS_VA_COPY
-#include <iostream>
 
 
 
@@ -148,13 +118,11 @@ namespace Yuni
 	{}
 
 
-	# ifdef YUNI_HAS_CPP_MOVE
 	template<uint ChunkSizeT, bool ExpandableT>
 	inline
 	CString<ChunkSizeT,ExpandableT>::CString(CString<ChunkSizeT,ExpandableT>&& rhs) :
 		AncestorType(rhs)
 	{}
-	# endif
 
 
 	template<uint ChunkSizeT, bool ExpandableT>
@@ -268,7 +236,7 @@ namespace Yuni
 			if (length > n)
 				length = n;
 			if (not adapter)
-				AncestorType::assign((const char* const) s.c_str() + offset, length);
+				AncestorType::assign(reinterpret_cast<const char* const>(s.c_str()) + offset, length);
 			else
 				adapt(s.c_str() + offset, length);
 		}
@@ -282,7 +250,7 @@ namespace Yuni
 		if (offset < s.size())
 		{
 			if (not adapter)
-				AncestorType::assign((const char* const) s.c_str() + offset, s.size() - offset);
+				AncestorType::assign(reinterpret_cast<const char* const>(s.c_str()) + offset, s.size() - offset);
 			else
 				adapt(s.c_str() + offset, s.size() - offset);
 		}
@@ -308,7 +276,7 @@ namespace Yuni
 			if (length > n)
 				length = n;
 			if (not adapter)
-				AncestorType::assign((const char* const) s.c_str() + offset, length);
+				AncestorType::assign(reinterpret_cast<const char* const>(s.c_str()) + offset, length);
 			else
 				adapt(s.c_str() + offset, length);
 		}
@@ -322,7 +290,7 @@ namespace Yuni
 		if (offset < s.size())
 		{
 			if (not adapter)
-				AncestorType::assign((const char* const) s.c_str() + offset, s.size() - offset);
+				AncestorType::assign(reinterpret_cast<const char* const>(s.c_str()) + offset, s.size() - offset);
 			else
 				adapt(s.c_str() + offset, s.size() - offset);
 		}
@@ -841,12 +809,7 @@ namespace Yuni
 	typename CString<ChunkSizeT,ExpandableT>::Size
 	CString<ChunkSizeT,ExpandableT>::find(char c) const
 	{
-		for (Size i = 0; i != AncestorType::size; ++i)
-		{
-			if (c == AncestorType::data[i])
-				return i;
-		}
-		return npos;
+		return find(c, 0);
 	}
 
 
@@ -854,10 +817,16 @@ namespace Yuni
 	typename CString<ChunkSizeT,ExpandableT>::Size
 	CString<ChunkSizeT,ExpandableT>::find(char c, Size offset) const
 	{
-		for (Size i = offset; i < AncestorType::size; ++i)
+		if (offset < AncestorType::size)
 		{
-			if (c == AncestorType::data[i])
-				return i;
+			const char* p   = AncestorType::data + offset;
+			const char* end = AncestorType::data + (AncestorType::size);
+
+			for (; p != end; ++p)
+			{
+				if (c == *p)
+					return static_cast<Size>(p - AncestorType::data);
+			}
 		}
 		return npos;
 	}
@@ -869,13 +838,16 @@ namespace Yuni
 	{
 		if (cstr and len and len <= AncestorType::size)
 		{
-			Size end = AncestorType::size - len + 1;
-			for (Size i = offset; i < end; ++i)
+			// Size end = AncestorType::size - len + 1;
+			const char* p   = AncestorType::data + offset;
+			const char* end = AncestorType::data + (AncestorType::size - len + 1);
+			char needle     = *cstr;
+			for (; p != end; ++p)
 			{
-				if (AncestorType::data[i] == *cstr)
+				if (*p == needle)
 				{
-					if (0 == ::memcmp(AncestorType::data + i, cstr, len))
-						return i;
+					if (0 == ::memcmp(p, cstr, len))
+						return static_cast<Size>(p - AncestorType::data);
 				}
 			}
 		}
@@ -1154,9 +1126,11 @@ namespace Yuni
 	bool
 	CString<ChunkSizeT,ExpandableT>::contains(char c) const
 	{
-		for (Size i = 0; i != AncestorType::size; ++i)
+		const char* p   = AncestorType::data;
+		const char* end = AncestorType::data + AncestorType::size;
+		for (; p != end; ++p)
 		{
-			if (c == AncestorType::data[i])
+			if (c == *p)
 				return true;
 		}
 		return false;
@@ -1164,22 +1138,10 @@ namespace Yuni
 
 
 	template<uint ChunkSizeT, bool ExpandableT>
-	bool
+	inline bool
 	CString<ChunkSizeT,ExpandableT>::contains(const char* const cstr, Size len) const
 	{
-		if (cstr and len and len <= AncestorType::size)
-		{
-			Size end = AncestorType::size - len + 1;
-			for (Size i = 0; i != end; ++i)
-			{
-				if (AncestorType::data[i] == *cstr)
-				{
-					if (0 == ::memcmp(AncestorType::data + i, cstr, len))
-						return true;
-				}
-			}
-		}
-		return false;
+		return find(cstr, len) < size();
 	}
 
 
@@ -1187,7 +1149,7 @@ namespace Yuni
 	inline bool
 	CString<ChunkSizeT,ExpandableT>::contains(const AnyString& string) const
 	{
-		return contains(string.c_str(), string.size());
+		return find(string.c_str(), string.size()) < size();
 	}
 
 
@@ -1263,7 +1225,10 @@ namespace Yuni
 	inline bool
 	CString<ChunkSizeT,ExpandableT>::startsWith(const AnyString& string) const
 	{
-		return startsWith(string.c_str(), string.size());
+		uint len = string.size();
+		return (len != 0 and len <= AncestorType::size)
+			? (0 == ::memcmp(AncestorType::data, string.c_str(), len))
+			: false;
 	}
 
 
@@ -1490,12 +1455,17 @@ namespace Yuni
 	inline typename CString<ChunkSizeT,ExpandableT>::Size
 	CString<ChunkSizeT,ExpandableT>::ifind_first_of(char c, Size offset) const
 	{
-		c = (char) ToLower(c);
-		for (Size i = offset; i < AncestorType::size; ++i)
+		if (offset < AncestorType::size)
 		{
-			// alias to the current character
-			if (c == (char) ToLower(AncestorType::data[i]))
-				return i;
+			c = static_cast<char>(ToLower(c));
+			const char* p   = AncestorType::data + offset;
+			const char* end = AncestorType::data + (AncestorType::size);
+
+			for (; p != end; ++p)
+			{
+				if (c == static_cast<char>(ToLower(*p)))
+					return static_cast<Size>(p - AncestorType::data);
+			}
 		}
 		return npos;
 	}
@@ -1506,19 +1476,21 @@ namespace Yuni
 	inline typename CString<ChunkSizeT,ExpandableT>::Size
 	CString<ChunkSizeT,ExpandableT>::find_first_of(const AnyString& sequence, Size offset) const
 	{
-		// The given sequence
-		const char* const s = sequence.c_str();
-		Size len = sequence.size();
-		Size j;
-
-		for (Size i = offset; i < AncestorType::size; ++i)
+		if (offset < AncestorType::size and not sequence.empty())
 		{
-			// alias to the current character
-			char c = AncestorType::data[i];
-			for (j = 0; j != len; ++j)
+			const char* p    = AncestorType::data + offset;
+			const char* end  = AncestorType::data + (AncestorType::size);
+
+			const char* jfirst = sequence.c_str();
+			const char* jend   = jfirst + sequence.size();
+
+			for (; p != end; ++p)
 			{
-				if (s[j] == c)
-					return i;
+				for (const char* j = jfirst; j != jend; ++j)
+				{
+					if (*j == *p)
+						return static_cast<Size>(p - AncestorType::data);
+				}
 			}
 		}
 		return npos;
@@ -1529,13 +1501,16 @@ namespace Yuni
 	inline typename CString<ChunkSizeT,ExpandableT>::Size
 	CString<ChunkSizeT,ExpandableT>::find_first_not_of(char c, Size offset) const
 	{
-		for (Size i = offset; i < AncestorType::size; ++i)
+		if (offset < AncestorType::size)
 		{
-			// alias to the current character
-			if (c == AncestorType::data[i])
-				continue;
-			else
-				return i;
+			const char* p   = AncestorType::data + offset;
+			const char* end = AncestorType::data + (AncestorType::size);
+
+			for (; p != end; ++p)
+			{
+				if (c != *p)
+					return static_cast<Size>(p - AncestorType::data);
+			}
 		}
 		return npos;
 	}
@@ -1545,14 +1520,17 @@ namespace Yuni
 	inline typename CString<ChunkSizeT,ExpandableT>::Size
 	CString<ChunkSizeT,ExpandableT>::ifind_first_not_of(char c, Size offset) const
 	{
-		c = static_cast<char>(ToLower(c));
-		for (Size i = offset; i < AncestorType::size; ++i)
+		if (offset < AncestorType::size)
 		{
-			// alias to the current character
-			if (c == static_cast<char>(ToLower(AncestorType::data[i])))
-				continue;
-			else
-				return i;
+			c = static_cast<char>(ToLower(c));
+			const char* p   = AncestorType::data + offset;
+			const char* end = AncestorType::data + (AncestorType::size);
+
+			for (; p != end; ++p)
+			{
+				if (c != static_cast<char>(ToLower(*p)))
+					return static_cast<Size>(p - AncestorType::data);
+			}
 		}
 		return npos;
 	}
@@ -1563,27 +1541,22 @@ namespace Yuni
 	inline typename CString<ChunkSizeT,ExpandableT>::Size
 	CString<ChunkSizeT,ExpandableT>::find_first_not_of(const AnyString& sequence, Size offset) const
 	{
-		// The given sequence
-		const char* const s = sequence.c_str();
-		Size len = sequence.size();
-		Size j;
-
-		for (Size i = offset; i < AncestorType::size; ++i)
+		if (offset < AncestorType::size and not sequence.empty())
 		{
-			bool stop = true;
-			// alias to the current character
-			char c = AncestorType::data[i];
-			for (j = 0; j != len; ++j)
+			const char* p    = AncestorType::data + offset;
+			const char* end  = AncestorType::data + (AncestorType::size);
+
+			const char* jfirst = sequence.c_str();
+			const char* jend   = jfirst + sequence.size();
+
+			for (; p != end; ++p)
 			{
-				if (s[j] == c)
+				for (const char* j = jfirst; j != jend; ++j)
 				{
-					stop = false;
-					break;
+					if (*j != *p)
+						return static_cast<Size>(p - AncestorType::data);
 				}
 			}
-			if (stop)
-				return i;
-
 		}
 		return npos;
 	}
@@ -1746,7 +1719,7 @@ namespace Yuni
 				++count;
 			}
 		}
-		return 0;
+		return count;
 	}
 
 
@@ -1865,7 +1838,7 @@ namespace Yuni
 	{
 		YUNI_STATIC_ASSERT(!adapter, CString_Adapter_ReadOnly);
 		uint count = 0;
-		from = (char) ToLower(from);
+		from = static_cast<char>(ToLower(from));
 		for (Size i = offset; i < AncestorType::size; ++i)
 		{
 			if (from == AncestorType::data[i])
@@ -2399,7 +2372,7 @@ namespace Yuni
 	inline size_t
 	CString<ChunkSizeT,ExpandableT>::sizeInBytes() const
 	{
-		return (size_t) AncestorType::size * sizeof(Char);
+		return static_cast<size_t>(AncestorType::size) * sizeof(Char);
 	}
 
 
@@ -2424,7 +2397,7 @@ namespace Yuni
 	inline size_t
 	CString<ChunkSizeT,ExpandableT>::capacityInBytes() const
 	{
-		return (size_t) AncestorType::capacity * sizeof(Char);
+		return static_cast<size_t>(AncestorType::capacity) * sizeof(Char);
 	}
 
 
@@ -2467,6 +2440,16 @@ namespace Yuni
 		return AncestorType::null();
 	}
 
+	template<uint ChunkSizeT, bool ExpandableT>
+	inline bool
+	CString<ChunkSizeT,ExpandableT>::blank() const
+	{
+		if (0 == AncestorType::size)
+			return true;
+		AnyString view{*this};
+		view.trimRight();
+		return view.empty();
+	}
 
 	template<uint ChunkSizeT, bool ExpandableT>
 	inline void
@@ -2804,7 +2787,7 @@ namespace Yuni
 					// An error occured
 					return;
 				}
-				AncestorType::size += (Size) i;
+				AncestorType::size += static_cast<Size>(i);
 				if (zeroTerminated)
 					AncestorType::data[AncestorType::size] = Char();
 				return;
@@ -2821,7 +2804,7 @@ namespace Yuni
 					(AncestorType::capacity - AncestorType::size), format, args);
 				if (i >= 0)
 				{
-					AncestorType::size += (Size) i;
+					AncestorType::size += static_cast<Size>(i);
 					if (zeroTerminated)
 						AncestorType::data[AncestorType::size] = Char();
 				}
@@ -2847,7 +2830,7 @@ namespace Yuni
 		YUNI_STATIC_ASSERT(!adapter, CString_Adapter_ReadOnly);
 		for (Size i = 0; i < AncestorType::size; ++i)
 		{
-			if (UTF8::Char::IsASCII((unsigned char)AncestorType::data[i]))
+			if (UTF8::Char::IsASCII(static_cast<unsigned char>(AncestorType::data[i])))
 				AncestorType::data[i] = static_cast<Char>(ToLower(AncestorType::data[i]));
 		}
 		return *this;
@@ -2861,8 +2844,8 @@ namespace Yuni
 		YUNI_STATIC_ASSERT(!adapter, CString_Adapter_ReadOnly);
 		for (Size i = 0; i < AncestorType::size; ++i)
 		{
-			if (UTF8::Char::IsASCII((unsigned char)AncestorType::data[i]))
-				AncestorType::data[i] = (Char) ToUpper(AncestorType::data[i]);
+			if (UTF8::Char::IsASCII(static_cast<unsigned char>(AncestorType::data[i])))
+				AncestorType::data[i] = static_cast<Char>(ToUpper(AncestorType::data[i]));
 		}
 		return *this;
 	}
@@ -3110,7 +3093,6 @@ namespace Yuni
 	}
 
 
-	# ifdef YUNI_HAS_CPP_MOVE
 	template<uint ChunkSizeT, bool ExpandableT>
 	inline CString<ChunkSizeT,ExpandableT>&
 	CString<ChunkSizeT,ExpandableT>::operator = (CString<ChunkSizeT,ExpandableT>&& rhs)
@@ -3118,7 +3100,6 @@ namespace Yuni
 		AncestorType::operator = (std::move(rhs));
 		return *this;
 	}
-	# endif
 
 
 	template<uint ChunkSizeT, bool ExpandableT>
@@ -3433,12 +3414,13 @@ namespace Yuni
 
 
 	template<uint ChunkSizeT, bool ExpandableT>
-	size_t
-	CString<ChunkSizeT,ExpandableT>::hash() const
+	inline size_t CString<ChunkSizeT,ExpandableT>::hash() const
 	{
 		size_t hash = 0;
-		for (uint i = 0; i != AncestorType::size; ++i)
-			hash = (uint) AncestorType::data[i] + (hash << 6) + (hash << 16) - hash;
+		const char* p   = AncestorType::data;
+		const char* end = AncestorType::data + AncestorType::size;
+		for (; p != end; ++p)
+			hash = static_cast<uint>(*p) + (hash << 6) + (hash << 16) - hash;
 		return hash;
 	}
 
@@ -3476,12 +3458,12 @@ namespace Yuni
 			return false;
 
 		// resize the internal buffer
-		reserve(AncestorType::size + (Size) needed + zeroTerminated);
+		reserve(AncestorType::size + static_cast<Size>(needed) + zeroTerminated);
 
 		Size maxAllowedSize = capacity() - AncestorType::size;
 		if (maxAllowedSize <= 1)
 			return false; // failed to extend the string
-		maxAllowedSize -= (uint) zeroTerminated;
+		maxAllowedSize -= static_cast<uint>(zeroTerminated);
 
 		char* cstr = data();
 		if (cstr == nullptr) // making sure that the buffer has been allocated
@@ -3492,7 +3474,7 @@ namespace Yuni
 		if (written != 0)
 		{
 			assert(AncestorType::size + written < capacity());
-			resize(AncestorType::size + (Size) written); // making sure that the string is zero-terminated
+			resize(AncestorType::size + static_cast<Size>(written)); // making sure that the string is zero-terminated
 			return true;
 		}
 
@@ -3502,6 +3484,26 @@ namespace Yuni
 	}
 
 
+	template<uint ChunkSizeT, bool ExpandableT>
+	inline void
+	CString<ChunkSizeT,ExpandableT>::swap(CString<ChunkSizeT,ExpandableT>& rhs)
+	{
+		YUNI_STATIC_ASSERT(!adapter, CString_Adapter_ReadOnly);
+		AncestorType::swap(rhs);
+	}
+
+
+	template<uint ChunkSizeT, bool ExpandableT>
+	inline char*
+	CString<ChunkSizeT,ExpandableT>::forgetContent()
+	{
+		char* cstring = data();
+		if (not adapter)
+			AncestorType::forgetContent();
+		else
+			AncestorType::size = 0;
+		return cstring;
+	}
 
 
 } // namespace Yuni

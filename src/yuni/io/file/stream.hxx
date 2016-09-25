@@ -1,41 +1,12 @@
 /*
-** YUNI's default license is the GNU Lesser Public License (LGPL), with some
-** exclusions (see below). This basically means that you can get the full source
-** code for nothing, so long as you adhere to a few rules.
+** This file is part of libyuni, a cross-platform C++ framework (http://libyuni.org).
 **
-** Under the LGPL you may use YUNI for any purpose you wish, and modify it if you
-** require, as long as you:
+** This Source Code Form is subject to the terms of the Mozilla Public License
+** v.2.0. If a copy of the MPL was not distributed with this file, You can
+** obtain one at http://mozilla.org/MPL/2.0/.
 **
-** Pass on the (modified) YUNI source code with your software, with original
-** copyrights intact :
-**  * If you distribute electronically, the source can be a separate download
-**    (either from your own site if you modified YUNI, or to the official YUNI
-**    website if you used an unmodified version) – just include a link in your
-**    documentation
-**  * If you distribute physical media, the YUNI source that you used to build
-**    your application should be included on that media
-** Make it clear where you have customised it.
-**
-** In addition to the LGPL license text, the following exceptions / clarifications
-** to the LGPL conditions apply to YUNI:
-**
-**  * Making modifications to YUNI configuration files, build scripts and
-**    configuration headers such as yuni/platform.h in order to create a
-**    customised build setup of YUNI with the otherwise unmodified source code,
-**    does not constitute a derived work
-**  * Building against YUNI headers which have inlined code does not constitute a
-**    derived work
-**  * Code which subclasses YUNI classes outside of the YUNI libraries does not
-**    form a derived work
-**  * Statically linking the YUNI libraries into a user application does not make
-**    the user application a derived work.
-**  * Using source code obsfucation on the YUNI source code when distributing it
-**    is not permitted.
-** As per the terms of the LGPL, a "derived work" is one for which you have to
-** distribute source code for, so when the clauses above define something as not
-** a derived work, it means you don't have to distribute source code for it.
-** However, the original YUNI source code with all modifications must always be
-** made available.
+** github: https://github.com/libyuni/libyuni/
+** gitlab: https://gitlab.com/libyuni/libyuni/ (mirror)
 */
 #pragma once
 #include "stream.h"
@@ -177,8 +148,8 @@ namespace File
 	inline uint Stream::write(bool value, uint64 maxsize)
 	{
 		return value
-			? (uint) ::fwrite("true",  (4 < maxsize) ? 4 : (size_t)maxsize, 1, pFd)
-			: (uint) ::fwrite("false", (5 < maxsize) ? 5 : (size_t)maxsize, 1, pFd);
+			? (uint) ::fwrite("true",  (4 < maxsize) ? 4 : static_cast<size_t>(maxsize), 1, pFd)
+			: (uint) ::fwrite("false", (5 < maxsize) ? 5 : static_cast<size_t>(maxsize), 1, pFd);
 	}
 
 	inline uint Stream::write(char buffer)
@@ -189,25 +160,25 @@ namespace File
 	inline uint Stream::write(float value)
 	{
 		ShortString64 string(value);
-		return (uint) ::fwrite(string.c_str(), 1, string.size(), pFd);
+		return static_cast<uint>(::fwrite(string.c_str(), 1, string.size(), pFd));
 	}
 
 	inline uint Stream::write(float value, uint64 maxsize)
 	{
 		ShortString64 string(value);
-		return (uint) ::fwrite(string.c_str(), 1, string.size() > maxsize ? (size_t)maxsize : string.size(), pFd);
+		return static_cast<uint>(::fwrite(string.c_str(), 1, string.size() > maxsize ? static_cast<size_t>(maxsize) : string.size(), pFd));
 	}
 
 	inline uint Stream::write(double value)
 	{
 		ShortString128 string(value);
-		return (uint) ::fwrite(string.c_str(), 1, string.size(), pFd);
+		return static_cast<uint>(::fwrite(string.c_str(), 1, string.size(), pFd));
 	}
 
 	inline uint Stream::write(double value, uint64 maxsize)
 	{
 		ShortString128 string(value);
-		return (uint) ::fwrite(string.c_str(), 1, string.size() > maxsize ? (size_t)maxsize : string.size(), pFd);
+		return (uint) ::fwrite(string.c_str(), 1, string.size() > maxsize ? static_cast<size_t>(maxsize) : string.size(), pFd);
 	}
 
 	inline uint Stream::write(sint16 value)
@@ -219,7 +190,7 @@ namespace File
 	inline uint Stream::write(sint16 value, uint64 maxsize)
 	{
 		ShortString32 string(value);
-		return (uint) ::fwrite(string.c_str(), 1, string.size() > maxsize ? (size_t)maxsize : string.size(), pFd);
+		return (uint) ::fwrite(string.c_str(), 1, string.size() > maxsize ? static_cast<size_t>(maxsize) : string.size(), pFd);
 	}
 
 	inline uint Stream::write(sint32 value)
@@ -231,7 +202,7 @@ namespace File
 	inline uint Stream::write(sint32 value, uint64 maxsize)
 	{
 		ShortString32 string(value);
-		return (uint) ::fwrite(string.c_str(), 1, string.size() > maxsize ? (size_t)maxsize : string.size(), pFd);
+		return (uint) ::fwrite(string.c_str(), 1, string.size() > maxsize ? static_cast<size_t>(maxsize) : string.size(), pFd);
 	}
 
 	inline uint Stream::write(sint64 value)
@@ -243,7 +214,7 @@ namespace File
 	inline uint Stream::write(sint64 value, uint64 maxsize)
 	{
 		ShortString32 string(value);
-		return (uint) ::fwrite(string.c_str(), 1, string.size() > maxsize ? (size_t)maxsize : string.size(), pFd);
+		return (uint) ::fwrite(string.c_str(), 1, string.size() > maxsize ? static_cast<size_t>(maxsize) : string.size(), pFd);
 	}
 
 	inline uint Stream::write(uint16 value)
@@ -255,7 +226,7 @@ namespace File
 	inline uint Stream::write(uint16 value, uint64 maxsize)
 	{
 		ShortString32 string(value);
-		return (uint) ::fwrite(string.c_str(), 1, string.size() > maxsize ? (size_t)maxsize : string.size(), pFd);
+		return (uint) ::fwrite(string.c_str(), 1, string.size() > maxsize ? static_cast<size_t>(maxsize) : string.size(), pFd);
 	}
 
 	inline uint Stream::write(uint32 value)
@@ -267,7 +238,7 @@ namespace File
 	inline uint Stream::write(uint32 value, uint64 maxsize)
 	{
 		ShortString32 string(value);
-		return (uint) ::fwrite(string.c_str(), 1, string.size() > maxsize ? (size_t)maxsize : string.size(), pFd);
+		return (uint) ::fwrite(string.c_str(), 1, string.size() > maxsize ? static_cast<size_t>(maxsize) : string.size(), pFd);
 	}
 
 	inline uint Stream::write(uint64 value)
@@ -279,7 +250,7 @@ namespace File
 	inline uint Stream::write(uint64 value, uint64 maxsize)
 	{
 		ShortString32 string(value);
-		return (uint) ::fwrite(string.c_str(), 1, string.size() > maxsize ? (size_t)maxsize : string.size(), pFd);
+		return static_cast<uint>(::fwrite(string.c_str(), 1, string.size() > maxsize ? static_cast<size_t>(maxsize) : string.size(), pFd));
 	}
 
 	template<class U>
@@ -293,7 +264,7 @@ namespace File
 	inline uint Stream::write(char buffer, uint64 maxsize)
 	{
 		return (maxsize != 0)
-			? ((EOF != ::fputc((int) buffer, pFd)) ? 1 : 0)
+			? ((EOF != ::fputc(static_cast<int>(buffer), pFd)) ? 1 : 0)
 			: 0;
 	}
 
@@ -301,7 +272,7 @@ namespace File
 	inline uint64 Stream::write(const U& buffer, uint64 maxsize)
 	{
 		String string(buffer);
-		return (uint64) ::fwrite(string.c_str(), 1, string.size() > maxsize ? (size_t)maxsize : string.size(), pFd);
+		return (uint64) ::fwrite(string.c_str(), 1, string.size() > maxsize ? static_cast<size_t>(maxsize) : string.size(), pFd);
 	}
 
 
@@ -313,14 +284,14 @@ namespace File
 
 	inline Stream& Stream::operator += (const char c)
 	{
-		(void)::fputc((int) c, pFd);
+		(void)::fputc(static_cast<int>(c), pFd);
 		return *this;
 	}
 
 
 	inline Stream& Stream::operator << (const char c)
 	{
-		(void)::fputc((int) c, pFd);
+		(void)::fputc(static_cast<int>(c), pFd);
 		return *this;
 	}
 
@@ -346,16 +317,16 @@ namespace File
 	Stream::read(CString<CSizeT, ExpT>& buffer, uint64 size)
 	{
 		assert(pFd and "File not opened");
-		assert(size <= uint64(2 * 1024) * 1024 * 1024);
-		if (!size)
+		assert(size <= static_cast<uint64>(2 * 1024) * 1024u * 1024u);
+		if (0 == size)
 			return 0;
 
 		// special case for static strings
-		if (!buffer.expandable and size > buffer.chunkSize)
+		if (not buffer.expandable and size > buffer.chunkSize)
 			size = buffer.chunkSize;
 
 		// Resizing the buffer
-		buffer.resize((uint) size);
+		buffer.resize(static_cast<uint>(size));
 
 		// Assert to prevent SegV
 		assert(buffer.capacity() != 0 and "When reading a file, the buffer must have reserved some space");
@@ -363,13 +334,13 @@ namespace File
 		typedef CString<CSizeT, ExpT> StringType;
 		typedef typename StringType::Char C;
 		// Reading the file
-		size_t result = ::fread(const_cast<char*>(buffer.data()), 1, (size_t) (sizeof(C) * size), pFd);
+		size_t result = ::fread(const_cast<char*>(buffer.data()), 1, static_cast<size_t>(sizeof(C) * size), pFd);
 		// Setting the good size, because we may have read less than asked
-		if (result < (size_t) buffer.size())
-			buffer.truncate((uint)result);
+		if (result < static_cast<size_t>(buffer.size()))
+			buffer.truncate(static_cast<uint>(result));
 		// Making sure that the buffer is zero-terminated if required
 		if (buffer.zeroTerminated)
-			*((C*)(buffer.data() + buffer.size())) = C();
+			*(reinterpret_cast<C*>(buffer.data() + buffer.size())) = C();
 		return result;
 	}
 
@@ -389,7 +360,7 @@ namespace File
 		const uint64 result = ::fread(buffer.data(), 1, sizeof(C) * buffer.chunkSize, pFd);
 		// Setting the good size, because we may have read less than asked
 		if (result < buffer.size())
-			buffer.truncate((typename StringType::Size) result);
+			buffer.truncate(static_cast<typename StringType::Size>(result));
 		// Making sure that the buffer is zero-terminated if required
 		if (buffer.zeroTerminated)
 			*((C*)(buffer.data() + buffer.size())) = C();

@@ -45,7 +45,7 @@ if(YUNI_MODULE_CORE)
 		add_definitions("-DYUNI_CONFIG_H_LOCATION=\"${CMAKE_CURRENT_BINARY_DIR}/config.h\"")
 	endif()
 	# Core
-	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/core.cmake")
+	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/core/core.cmake")
 endif()
 
 if(YUNI_MODULE_VM)
@@ -147,7 +147,7 @@ endif()
 
 
 if(YUNI_MODULE_PARSER)
-	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/parser.cmake")
+	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/parser/parser.cmake")
 endif()
 
 
@@ -168,7 +168,13 @@ CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.cmake ${CMAKE_CURRENT_S
 #
 add_definitions("-DYUNI_LIBRARY_STATIC")
 LIBYUNI_CONFIG_DEFINITION("both" "core" "YUNI_LIBRARY_STATIC")
+
 include_directories(${YUNI_INCLUDE})
+
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../")
+if (NOT "${CMAKE_CURRENT_BINARY_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
+	include_directories("${CMAKE_CURRENT_BINARY_DIR}/../")
+endif()
 
 
 
